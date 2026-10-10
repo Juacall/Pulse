@@ -7,6 +7,11 @@ import {
   ExternalLink, Layers, Terminal, Database, Cpu, ArrowUpRight, Award, RefreshCw, X, Map
 } from 'lucide-react';
 import geoUrl from "./assets/states-10m.json";
+import { fetchPoliticians, queryRagAgent } from './api';
+import { getMemberImageUrl } from './utils/image';
+import { useEffect } from 'react';
+
+const FALLBACK_MEMBER_IMAGE = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80";
 
 const FIPS_TO_STUSPS = {
   "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT",
@@ -22,7 +27,7 @@ const FIPS_TO_STUSPS = {
 const STATE_NAMES = {
   AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
   CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia",
-  HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas",
+  DC: "District of Columbia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas",
   KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts",
   MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana",
   NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico",
@@ -31,189 +36,30 @@ const STATE_NAMES = {
   TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
   WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming"
 };
+const STATE_OPTIONS = Object.entries(STATE_NAMES).sort(([, nameA], [, nameB]) => nameA.localeCompare(nameB));
 
-const INITIAL_POLITICIANS = [
-  {
-    id: "M001188",
-    name: "Patty Murray",
-    state: "WA",
-    stateName: "Washington",
-    chamber: "Senate",
-    party: "Democrat",
-    district: "Senior Senator",
-    image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80",
-    bio: "Patty Murray has served as a U.S. Senator from Washington state since 1993. Senior member of Senate Appropriations and HELP committees focusing on education, veterans' care, and Pacific Northwest infrastructure.",
-    metrics: {
-      sponsoredCount: 245,
-      cosponsoredCount: 812,
-      passRate: "18.4%",
-      approvalRating: 62
-    },
-    topDonors: [
-      { name: "Microsoft Corp PAC", amount: "$142,500", industry: "Technology" },
-      { name: "University of Washington", amount: "$98,200", industry: "Education" },
-      { name: "Boeing Co", amount: "$87,400", industry: "Aerospace & Defense" },
-      { name: "Amazon.com Inc", amount: "$76,100", industry: "E-Commerce / Tech" },
-      { name: "EMILY's List", amount: "$65,000", industry: "Political Action" }
-    ],
-    sponsoredBills: [
-      { id: "S-1028", title: "Columbia River Salmon and Ecosystem Restoration Act", status: "In Committee", date: "2026-03-12" },
-      { id: "S-2489", title: "Pacific Northwest Rural Healthcare Access Acceleration Act", status: "Passed Senate", date: "2026-01-20" },
-      { id: "S-3102", title: "6PPD Stormwater Runoff Mitigation Task Force Act", status: "Enacted", date: "2025-11-04" },
-      { id: "S-891", title: "Child Care and Early Learning Infrastructure Modernization Act", status: "In Committee", date: "2025-08-19" }
-    ],
-    sentimentStats: { approve: 1420, disapprove: 640, neutral: 210 },
-    userComments: [
-      { id: 1, author: "Elena R. (Seattle)", vote: "approve", text: "Strong leadership on Columbia River ecosystem protections and Boeing safety standards.", time: "2 hours ago" },
-      { id: 2, author: "Mark T. (Spokane)", vote: "neutral", text: "Would like to see more support for Eastern WA agricultural water rights.", time: "1 day ago" }
-    ]
-  },
-  {
-    id: "C001088",
-    name: "Suzan DelBene",
-    state: "WA",
-    stateName: "Washington",
-    chamber: "House",
-    party: "Democrat",
-    district: "1st District",
-    image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=300&q=80",
-    bio: "U.S. Representative for Washington's 1st congressional district since 2012. Serves on House Ways and Means Committee, specializing in digital trade, tech privacy, and tax equity.",
-    metrics: {
-      sponsoredCount: 112,
-      cosponsoredCount: 540,
-      passRate: "12.1%",
-      approvalRating: 58
-    },
-    topDonors: [
-      { name: "Microsoft Corp", amount: "$110,000", industry: "Technology" },
-      { name: "Google / Alphabet Inc", amount: "$84,500", industry: "Technology" },
-      { name: "T-Mobile USA", amount: "$62,000", industry: "Telecommunications" },
-      { name: "PACCAR Inc", amount: "$45,000", industry: "Manufacturing" }
-    ],
-    sponsoredBills: [
-      { id: "HR-10563", title: "Facial Recognition and Biometric Technology Moratorium Act", status: "In Committee", date: "2026-02-14" },
-      { id: "HR-1091", title: "Carried Interest Fairness Act of 2026", status: "In Committee", date: "2025-09-10" }
-    ],
-    sentimentStats: { approve: 890, disapprove: 410, neutral: 180 },
-    userComments: [
-      { id: 1, author: "David K. (Redmond)", vote: "approve", text: "Sponsorship of facial recognition moratorium is crucial for AI ethics.", time: "4 hours ago" }
-    ]
-  },
-  {
-    id: "K000388",
-    name: "Kevin Kiley",
-    state: "CA",
-    stateName: "California",
-    chamber: "House",
-    party: "Republican",
-    district: "3rd District",
-    image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=300&q=80",
-    bio: "U.S. Representative for California's 3rd district since 2023. Focuses on federal deregulation, forestry and wildfire prevention, and independent contractor protections.",
-    metrics: {
-      sponsoredCount: 88,
-      cosponsoredCount: 310,
-      passRate: "8.5%",
-      approvalRating: 51
-    },
-    topDonors: [
-      { name: "Sierra Pacific Industries", amount: "$72,000", industry: "Forestry & Logging" },
-      { name: "National Association of Realtors", amount: "$55,000", industry: "Real Estate" },
-      { name: "Chevron USA", amount: "$48,000", industry: "Energy & Mining" }
-    ],
-    sponsoredBills: [
-      { id: "HR-3889", title: "National Prescribed Fire and Sierra Forestry Act", status: "Passed House", date: "2026-02-01" },
-      { id: "HR-6646", title: "Empowering App-Based Workers Act", status: "In Committee", date: "2025-10-15" }
-    ],
-    sentimentStats: { approve: 620, disapprove: 580, neutral: 140 },
-    userComments: [
-      { id: 1, author: "Brian S. (Placer County)", vote: "approve", text: "The prescribed fire legislation is vital for Northern California forest health.", time: "1 day ago" }
-    ]
-  },
-  {
-    id: "A000370",
-    name: "Pete Aguilar",
-    state: "CA",
-    stateName: "California",
-    chamber: "House",
-    party: "Democrat",
-    district: "33rd District",
-    image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80",
-    bio: "House Democratic Caucus Chair representing Inland Empire region. Focuses on housing affordability, inland logistics infrastructure, and veteran education support.",
-    metrics: {
-      sponsoredCount: 140,
-      cosponsoredCount: 620,
-      passRate: "15.0%",
-      approvalRating: 65
-    },
-    topDonors: [
-      { name: "American Hospital Association", amount: "$95,000", industry: "Healthcare" },
-      { name: "BNSF Railway", amount: "$68,000", industry: "Transportation" },
-      { name: "Kaiser Permanente", amount: "$54,000", industry: "Healthcare" }
-    ],
-    sponsoredBills: [
-      { id: "HR-4457", title: "Inland Empire Housing Accessibility and Veteran Assistance Act", status: "In Committee", date: "2026-01-11" }
-    ],
-    sentimentStats: { approve: 1120, disapprove: 320, neutral: 190 },
-    userComments: []
-  },
-  {
-    id: "S000148",
-    name: "Chuck Schumer",
-    state: "NY",
-    stateName: "New York",
-    chamber: "Senate",
-    party: "Democrat",
-    district: "Senior Senator",
-    image: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=300&q=80",
-    bio: "Senate Majority Leader representing New York since 1999. Chief architect of federal semiconductor investment (CHIPS Act), public transit funding, and financial reform.",
-    metrics: {
-      sponsoredCount: 410,
-      cosponsoredCount: 1420,
-      passRate: "24.2%",
-      approvalRating: 54
-    },
-    topDonors: [
-      { name: "Goldman Sachs", amount: "$210,000", industry: "Financial Services" },
-      { name: "BlackRock Inc", amount: "$180,000", industry: "Investment Management" },
-      { name: "Consolidated Edison", amount: "$125,000", industry: "Utilities" }
-    ],
-    sponsoredBills: [
-      { id: "S-5388", title: "American Artificial Intelligence Frontier Leadership and Safety Act", status: "Passed Senate", date: "2026-02-28" },
-      { id: "S-6348", title: "Metropolitan Area Public Transit Infrastructure Resilience Act", status: "Enacted", date: "2025-12-14" }
-    ],
-    sentimentStats: { approve: 2450, disapprove: 1980, neutral: 410 },
-    userComments: [
-      { id: 1, author: "Marcus V. (Brooklyn)", vote: "disapprove", text: "Too much focus on Wall Street interests over local public housing.", time: "3 hours ago" }
-    ]
-  },
-  {
-    id: "C001098",
-    name: "Ted Cruz",
-    state: "TX",
-    stateName: "Texas",
-    chamber: "Senate",
-    party: "Republican",
-    district: "Junior Senator",
-    image: "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=300&q=80",
-    bio: "U.S. Senator for Texas since 2013. Serves on Senate Commerce, Science, and Transportation Committee focusing on energy independence, space exploration, and border security.",
-    metrics: {
-      sponsoredCount: 310,
-      cosponsoredCount: 940,
-      passRate: "14.8%",
-      approvalRating: 52
-    },
-    topDonors: [
-      { name: "Energy Transfer LP", amount: "$185,000", industry: "Oil & Gas" },
-      { name: "Valero Energy", amount: "$120,000", industry: "Oil & Gas" },
-      { name: "SpaceX / Tesla Inc", amount: "$95,000", industry: "Aerospace & Tech" }
-    ],
-    sponsoredBills: [
-      { id: "S-1575", title: "American Natural Gas Export Modernization and Security Act", status: "Passed Senate", date: "2026-01-18" }
-    ],
-    sentimentStats: { approve: 1890, disapprove: 1650, neutral: 310 },
-    userComments: []
+function normalizeParty(party) {
+  const value = String(party ?? "").trim();
+  const normalized = value.toLowerCase();
+
+  if (["d", "democrat", "democratic", "democratic party"].includes(normalized)) {
+    return "Democrat";
   }
-];
+  if (["r", "republic", "republican", "republican party"].includes(normalized)) {
+    return "Republican";
+  }
+  return value || "Unknown";
+}
+
+function partyBadgeClass(party) {
+  if (party === "Democrat") {
+    return "bg-blue-950/80 text-blue-300 border border-blue-800/60";
+  }
+  if (party === "Republican") {
+    return "bg-red-950/80 text-red-300 border border-red-800/60";
+  }
+  return "bg-slate-800 text-slate-300 border border-slate-700";
+}
 
 function AccurateUSMap({ selectedState, onSelectState, onHoverState }) {
   return (
@@ -270,34 +116,77 @@ function AccurateUSMap({ selectedState, onSelectState, onHoverState }) {
 }
 
 export default function App() {
-  const [politicians, setPoliticians] = useState(INITIAL_POLITICIANS);
+  const [politicians, setPoliticians] = useState([]);
+  const [loading, setLoading] = useState(false); // Declared missing loading state
   const [selectedPolitician, setSelectedPolitician] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedState, setSelectedState] = useState("ALL");
+  const [selectedState, setSelectedState] = useState("");
   const [selectedChamber, setSelectedChamber] = useState("ALL");
   const [selectedParty, setSelectedParty] = useState("ALL");
   const [hoveredState, setHoveredState] = useState(null);
 
-  // AI Modal Simulator State
+  // AI RAG Console State
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
+  // Fetch members whenever the state or chamber filter changes
+  useEffect(() => {
+    if (!selectedState) {
+      setPoliticians([]);
+      setLoading(false);
+      return;
+    }
+
+    async function loadData() {
+      setLoading(true);
+      try {
+        const data = await fetchPoliticians(selectedState, selectedChamber);
+
+        // Enrich backend records with default UI structures for donors/comments
+        const enriched = data.map(p => ({
+          ...p,
+          party: normalizeParty(p.party),
+          stateName: STATE_NAMES[p.state] || p.state,
+          bio: `${p.name} represents ${STATE_NAMES[p.state] || p.state} in the U.S. ${p.chamber}.`,
+          metrics: {
+            sponsoredCount: p.sponsoredCount || 0,
+            cosponsoredCount: p.cosponsoredCount || 0,
+            passRate: "14.2%",
+            approvalRating: 58
+          },
+          topDonors: [
+            { name: "Industry Action PAC", amount: "$120,000", industry: "Technology & Defense" },
+            { name: "Regional Commerce Coalition", amount: "$85,000", industry: "Infrastructure" }
+          ],
+          sponsoredBills: [],
+          sentimentStats: { approve: 120, disapprove: 45, neutral: 15 },
+          userComments: []
+        }));
+        setPoliticians(enriched);
+      } catch (err) {
+        console.error("Error loading politicians from DuckDB backend:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, [selectedState, selectedChamber]);
+
+  // Client-side search and party filter over fetched DuckDB results
   const filteredPoliticians = useMemo(() => {
     return politicians.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.stateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.sponsoredBills.some(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesState = selectedState === "ALL" || p.state === selectedState;
-      const matchesChamber = selectedChamber === "ALL" || p.chamber === selectedChamber;
       const matchesParty = selectedParty === "ALL" || p.party === selectedParty;
-      return matchesSearch && matchesState && matchesChamber && matchesParty;
+      return matchesSearch && matchesParty;
     });
-  }, [politicians, searchQuery, selectedState, selectedChamber, selectedParty]);
+  }, [politicians, searchQuery, selectedParty]);
 
   const stateSummaryStats = useMemo(() => {
-    if (selectedState === "ALL") return null;
+    if (!selectedState) return null;
     const members = politicians.filter(p => p.state === selectedState);
     const fullStateName = STATE_NAMES[selectedState] || selectedState;
 
@@ -326,6 +215,7 @@ export default function App() {
     };
   }, [selectedState, politicians]);
 
+  // Handle User Sentiment Voting
   const handleVote = (politicianId, voteType) => {
     setPoliticians(prev => prev.map(p => {
       if (p.id === politicianId) {
@@ -350,6 +240,7 @@ export default function App() {
     }
   };
 
+  // Handle Adding Public Comment
   const handleAddComment = (politicianId, commentText, voteType) => {
     if (!commentText.trim()) return;
     const newComment = {
@@ -378,36 +269,26 @@ export default function App() {
     }
   };
 
-  const runAiSimulation = (queryToRun) => {
+  // Live RAG Execution calling FastAPI backend
+  const runAiSimulation = async (queryToRun) => {
     const activeQuery = queryToRun || aiQuery;
     if (!activeQuery.trim()) return;
+
     setAiLoading(true);
     setAiResult(null);
 
-    setTimeout(() => {
-      const isWA = activeQuery.toLowerCase().includes("washington") || activeQuery.toLowerCase().includes("wa");
-      const isCA = activeQuery.toLowerCase().includes("california") || activeQuery.toLowerCase().includes("ca");
-      const stateCode = isWA ? "WA" : isCA ? "CA" : "NATIONAL";
-
+    try {
+      const realResult = await queryRagAgent(activeQuery);
+      setAiResult(realResult);
+    } catch (err) {
+      console.error("RAG Execution Error:", err);
       setAiResult({
-        routerAnalysis: {
-          intent: "HYBRID",
-          detectedState: stateCode,
-          normalizedCode: isWA ? "WA" : isCA ? "CA" : "ALL",
-          rewrittenPrompt: `Execute SQL query on 'mart_legislative_activity' filtering where target_member_state_code='${stateCode}' AND relationship='sponsor'. Perform Voyage AI vector search on 'doc_embeddings' for top matching summaries.`
-        },
-        sqlQuery: `SELECT bill_id, bill_title, COUNT(*) OVER() as total_bills\nFROM mart_legislative_activity\nWHERE target_member_state_code = '${stateCode}' AND relationship = 'sponsor'\nGROUP BY bill_id, bill_title\nLIMIT 5;`,
-        sqlResultsCount: isWA ? 245 : isCA ? 418 : 1240,
-        vectorSearchMatches: [
-          { score: 0.94, doc: "Columbia River Salmon and Ecosystem Restoration Act (S-1028) - Focuses on dam removal feasibility studies and tribal hatchery conveyance." },
-          { score: 0.89, doc: "6PPD Stormwater Runoff Task Force Act (S-3102) - Mandates EPA testing of toxic tire wear chemical impacts on coho salmon." }
-        ],
-        synthesizedAnswer: isWA
-            ? "Based on analytical DuckDB records and vector embeddings for Washington state (WA):\n\n• Total Sponsored Legislation: 245 active bills\n• Top Focus Areas: Environmental Protection & Salmon Ecosystem Recovery (S-1028, S-3102), Tech Privacy & Biometric Ethics (HR-10563), and Rural Healthcare Infrastructure.\n• Key Sponsors: Sen. Patty Murray (Senate) and Rep. Suzan DelBene (House)."
-            : `Synthesized intelligence for ${activeQuery}:\n\n• Analysis reveals strong concentration in regulatory oversight, climate resilience, and public infrastructure.\n• 12 key bills identified in DuckDB vector space matching your search criteria.`
+        routerAnalysis: { intent: "ERROR", detectedState: "NONE" },
+        synthesizedAnswer: `Failed to execute RAG agent query: ${err.message}`
       });
+    } finally {
       setAiLoading(false);
-    }, 1200);
+    }
   };
 
   return (
@@ -470,7 +351,7 @@ export default function App() {
                       <span>{stateSummaryStats.stateName} ({stateSummaryStats.code}) Selected</span>
                     </span>
                         <button
-                            onClick={() => setSelectedState("ALL")}
+                            onClick={() => setSelectedState("")}
                             className="text-[11px] font-semibold text-slate-400 hover:text-white underline"
                         >
                           Clear Selection
@@ -518,7 +399,7 @@ export default function App() {
                 <div className="w-full h-64 sm:h-80 relative flex items-center justify-center">
                   <AccurateUSMap
                       selectedState={selectedState}
-                      onSelectState={(code) => setSelectedState((prev) => (prev === code ? "ALL" : code))}
+                      onSelectState={(code) => setSelectedState((prev) => (prev === code ? "" : code))}
                       onHoverState={(code) => setHoveredState(code)}
                   />
                 </div>
@@ -554,13 +435,10 @@ export default function App() {
                     onChange={(e) => setSelectedState(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
                 >
-                  <option value="ALL">All States</option>
-                  <option value="WA">WA - Washington</option>
-                  <option value="CA">CA - California</option>
-                  <option value="NY">NY - New York</option>
-                  <option value="TX">TX - Texas</option>
-                  <option value="OR">OR - Oregon</option>
-                  <option value="FL">FL - Florida</option>
+                  <option value="">Select a state</option>
+                  {STATE_OPTIONS.map(([code, name]) => (
+                    <option key={code} value={code}>{code} - {name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -603,12 +481,17 @@ export default function App() {
               </h2>
             </div>
 
-            {filteredPoliticians.length === 0 ? (
+            {!selectedState ? (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
+                  <MapPin className="w-10 h-10 text-slate-500 mx-auto mb-3" />
+                  <p className="text-slate-400 font-medium">Select a state to view its congressional members.</p>
+                </div>
+            ) : filteredPoliticians.length === 0 ? (
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
                   <AlertCircle className="w-10 h-10 text-slate-500 mx-auto mb-3" />
                   <p className="text-slate-400 font-medium">No congressional members found matching these filters.</p>
                   <button
-                      onClick={() => { setSearchQuery(""); setSelectedState("ALL"); setSelectedChamber("ALL"); setSelectedParty("ALL"); }}
+                      onClick={() => { setSearchQuery(""); setSelectedState(""); setSelectedChamber("ALL"); setSelectedParty("ALL"); }}
                       className="mt-4 text-xs font-semibold text-cyan-400 hover:underline"
                   >
                     Reset All Filters
@@ -630,8 +513,12 @@ export default function App() {
                             <div className="flex items-start justify-between mb-4">
                               <div className="flex items-center space-x-3">
                                 <img
-                                    src={p.image}
+                                    src={getMemberImageUrl(p.id, "225x275")}
                                     alt={p.name}
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = FALLBACK_MEMBER_IMAGE;
+                                    }}
                                     className="w-12 h-12 rounded-full object-cover border-2 border-slate-700 group-hover:border-cyan-400 transition-colors"
                                 />
                                 <div>
@@ -648,9 +535,7 @@ export default function App() {
                               </div>
 
                               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                  p.party === 'Democrat'
-                                      ? 'bg-blue-950/80 text-blue-300 border border-blue-800/60'
-                                      : 'bg-red-950/80 text-red-300 border border-red-800/60'
+                                  partyBadgeClass(p.party)
                               }`}>
                           {p.party}
                         </span>
@@ -704,15 +589,19 @@ export default function App() {
                 <div>
                   <div className="flex items-start space-x-4 mb-6 pt-2">
                     <img
-                        src={selectedPolitician.image}
+                        src={getMemberImageUrl(selectedPolitician.id, "225x275")}
                         alt={selectedPolitician.name}
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = FALLBACK_MEMBER_IMAGE;
+                        }}
                         className="w-20 h-20 rounded-2xl object-cover border-2 border-cyan-500/50 shadow-lg"
                     />
                     <div>
                       <div className="flex items-center space-x-2">
                         <h2 className="text-2xl font-bold text-white">{selectedPolitician.name}</h2>
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            selectedPolitician.party === 'Democrat' ? 'bg-blue-950 text-blue-300 border border-blue-800' : 'bg-red-950 text-red-300 border border-red-800'
+                            partyBadgeClass(selectedPolitician.party)
                         }`}>
                       {selectedPolitician.party}
                     </span>
