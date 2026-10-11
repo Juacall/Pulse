@@ -2,16 +2,19 @@ import React, { useState, useMemo } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import {
   Search, Filter, Shield, User, Landmark, TrendingUp, Vote, MessageSquare,
-  Sparkles, DollarSign, FileText, CheckCircle2, AlertCircle, Clock, ChevronRight,
-  Send, BarChart3, ThumbsUp, ThumbsDown, MinusCircle, Building2, MapPin,
+  Sparkles, FileText, CheckCircle2, AlertCircle, Clock, ChevronRight,
+  Send, BarChart3, ThumbsUp, ThumbsDown, MinusCircle, MapPin,
   ExternalLink, Layers, Terminal, Database, Cpu, ArrowUpRight, Award, RefreshCw, X, Map
 } from 'lucide-react';
 import geoUrl from "./assets/states-10m.json";
 import { fetchPoliticians, queryRagAgent } from './api';
+import CampaignContributionSummary from './CampaignContributionSummary';
+import KeySponsoredLegislation from './KeySponsoredLegislation';
 import { getMemberImageUrl } from './utils/image';
 import { useEffect } from 'react';
 
 const FALLBACK_MEMBER_IMAGE = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80";
+const EMPTY_POLITICIANS = [];
 
 const FIPS_TO_STUSPS = {
   "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT",
@@ -117,32 +120,38 @@ function AccurateUSMap({ selectedState, onSelectState, onHoverState }) {
 
 export default function App() {
   const [politicians, setPoliticians] = useState([]);
-  const [loading, setLoading] = useState(false); // Declared missing loading state
+  const [politicianRequest, setPoliticianRequest] = useState({
+    filterKey: null,
+    status: "idle"
+  });
   const [selectedPolitician, setSelectedPolitician] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedChamber, setSelectedChamber] = useState("ALL");
   const [selectedParty, setSelectedParty] = useState("ALL");
   const [hoveredState, setHoveredState] = useState(null);
-
   // AI RAG Console State
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [aiQuery, setAiQuery] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
+  const currentFilterKey = JSON.stringify([selectedState, selectedChamber]);
+  const hasCurrentPoliticians = politicianRequest.filterKey === currentFilterKey;
+  const currentPoliticians = hasCurrentPoliticians && politicianRequest.status === "loaded"
+    ? politicians
+    : EMPTY_POLITICIANS;
+  const politiciansLoading = Boolean(selectedState) &&
+    (!hasCurrentPoliticians || politicianRequest.status === "loading");
 
   // Fetch members whenever the state or chamber filter changes
   useEffect(() => {
-    if (!selectedState) {
-      setPoliticians([]);
-      setLoading(false);
-      return;
-    }
+    if (!selectedState) return;
+    let isCurrentRequest = true;
 
     async function loadData() {
-      setLoading(true);
       try {
         const data = await fetchPoliticians(selectedState, selectedChamber);
+        if (!isCurrentRequest) return;
 
         // Enrich backend records with default UI structures for donors/comments
         const enriched = data.map(p => ({
@@ -156,38 +165,38 @@ export default function App() {
             passRate: "14.2%",
             approvalRating: 58
           },
-          topDonors: [
-            { name: "Industry Action PAC", amount: "$120,000", industry: "Technology & Defense" },
-            { name: "Regional Commerce Coalition", amount: "$85,000", industry: "Infrastructure" }
-          ],
           sponsoredBills: [],
           sentimentStats: { approve: 120, disapprove: 45, neutral: 15 },
           userComments: []
         }));
         setPoliticians(enriched);
+        setPoliticianRequest({ filterKey: currentFilterKey, status: "loaded" });
       } catch (err) {
+        if (!isCurrentRequest) return;
         console.error("Error loading politicians from DuckDB backend:", err);
-      } finally {
-        setLoading(false);
+        setPoliticianRequest({ filterKey: currentFilterKey, status: "error" });
       }
     }
     loadData();
-  }, [selectedState, selectedChamber]);
+    return () => {
+      isCurrentRequest = false;
+    };
+  }, [selectedState, selectedChamber, currentFilterKey]);
 
   // Client-side search and party filter over fetched DuckDB results
   const filteredPoliticians = useMemo(() => {
-    return politicians.filter(p => {
+    return currentPoliticians.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.stateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
           p.sponsoredBills.some(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()));
       const matchesParty = selectedParty === "ALL" || p.party === selectedParty;
       return matchesSearch && matchesParty;
     });
-  }, [politicians, searchQuery, selectedParty]);
+  }, [currentPoliticians, searchQuery, selectedParty]);
 
   const stateSummaryStats = useMemo(() => {
     if (!selectedState) return null;
-    const members = politicians.filter(p => p.state === selectedState);
+    const members = currentPoliticians.filter(p => p.state === selectedState);
     const fullStateName = STATE_NAMES[selectedState] || selectedState;
 
     if (members.length === 0) {
@@ -213,7 +222,7 @@ export default function App() {
       republicans,
       totalBills
     };
-  }, [selectedState, politicians]);
+  }, [selectedState, currentPoliticians]);
 
   // Handle User Sentiment Voting
   const handleVote = (politicianId, voteType) => {
@@ -486,6 +495,16 @@ export default function App() {
                   <MapPin className="w-10 h-10 text-slate-500 mx-auto mb-3" />
                   <p className="text-slate-400 font-medium">Select a state to view its congressional members.</p>
                 </div>
+            ) : politiciansLoading ? (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
+                  <RefreshCw className="w-10 h-10 text-slate-500 mx-auto mb-3 animate-spin" />
+                  <p className="text-slate-400 font-medium">Loading congressional members…</p>
+                </div>
+            ) : politicianRequest.filterKey === currentFilterKey && politicianRequest.status === "error" ? (
+                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
+                  <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
+                  <p className="text-slate-400 font-medium">Could not load congressional members. Please try again.</p>
+                </div>
             ) : filteredPoliticians.length === 0 ? (
                 <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
                   <AlertCircle className="w-10 h-10 text-slate-500 mx-auto mb-3" />
@@ -576,8 +595,8 @@ export default function App() {
 
         {/* POLITICIAN DETAIL MODAL DRAWER */}
         {selectedPolitician && (
-            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex justify-end overflow-y-auto">
-              <div className="w-full max-w-3xl bg-slate-900 border-l border-slate-800 min-h-full p-6 sm:p-8 flex flex-col justify-between shadow-2xl relative animate-in slide-in-from-right duration-300">
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex justify-end overflow-x-hidden overflow-y-auto">
+              <div className="box-border w-full max-w-3xl min-h-screen bg-slate-900 border-l border-slate-800 p-6 sm:p-8 flex flex-col shadow-2xl relative animate-in slide-in-from-right duration-300 overflow-x-hidden">
 
                 <button
                     onClick={() => setSelectedPolitician(null)}
@@ -586,8 +605,8 @@ export default function App() {
                   <X className="w-5 h-5" />
                 </button>
 
-                <div>
-                  <div className="flex items-start space-x-4 mb-6 pt-2">
+                <div className="w-full min-w-0">
+                  <div className="flex items-start space-x-4 mb-6 pt-2 min-w-0">
                     <img
                         src={getMemberImageUrl(selectedPolitician.id, "225x275")}
                         alt={selectedPolitician.name}
@@ -597,9 +616,9 @@ export default function App() {
                         }}
                         className="w-20 h-20 rounded-2xl object-cover border-2 border-cyan-500/50 shadow-lg"
                     />
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <h2 className="text-2xl font-bold text-white">{selectedPolitician.name}</h2>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-2xl font-bold text-white break-words">{selectedPolitician.name}</h2>
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             partyBadgeClass(selectedPolitician.party)
                         }`}>
@@ -615,51 +634,17 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="w-full min-w-0 space-y-6">
 
-                    {/* 1. KEY DONORS & PAC FINANCIAL BACKERS */}
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5">
-                      <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
-                        <DollarSign className="w-4 h-4 text-emerald-400" />
-                        <span>Top PAC & Financial Backers</span>
-                      </h3>
-                      <div className="space-y-2.5">
-                        {selectedPolitician.topDonors.map((donor, idx) => (
-                            <div key={idx} className="flex items-center justify-between bg-slate-900 p-3 rounded-xl border border-slate-800/80">
-                              <div className="flex items-center space-x-3">
-                                <Building2 className="w-4 h-4 text-slate-500" />
-                                <div>
-                                  <div className="text-xs font-bold text-slate-200">{donor.name}</div>
-                                  <div className="text-[10px] text-slate-400">{donor.industry}</div>
-                                </div>
-                              </div>
-                              <span className="text-xs font-extrabold text-emerald-400">{donor.amount}</span>
-                            </div>
-                        ))}
-                      </div>
-                    </div>
+                    <CampaignContributionSummary
+                      key={selectedPolitician.id}
+                      politicianId={selectedPolitician.id}
+                    />
 
-                    {/* 2. TOP SPONSORED LEGISLATION */}
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5">
-                      <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
-                        <FileText className="w-4 h-4 text-cyan-400" />
-                        <span>Key Sponsored Legislation</span>
-                      </h3>
-                      <div className="space-y-3">
-                        {selectedPolitician.sponsoredBills.map((bill, idx) => (
-                            <div key={idx} className="bg-slate-900 p-3.5 rounded-xl border border-slate-800/80 hover:border-slate-700 transition-colors">
-                              <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-xs font-bold text-cyan-300">{bill.id}</span>
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800">
-                            {bill.status}
-                          </span>
-                              </div>
-                              <p className="text-xs text-slate-200 font-medium">{bill.title}</p>
-                              <div className="text-[10px] text-slate-500 mt-2">Introduced: {bill.date}</div>
-                            </div>
-                        ))}
-                      </div>
-                    </div>
+                    <KeySponsoredLegislation
+                      key={selectedPolitician.id}
+                      bioguideId={selectedPolitician.id}
+                    />
 
                     {/* 3. PUBLIC OPINION & COMMUNITY SENTIMENT WIDGET */}
                     <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5">
