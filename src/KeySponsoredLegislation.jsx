@@ -53,18 +53,18 @@ export default function KeySponsoredLegislation({ bioguideId }) {
 
   return (
     <section className="w-full min-w-0 bg-slate-950 border border-slate-800 rounded-2xl p-5">
-      <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
+      <h3 className="text-base font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
         <FileText className="w-4 h-4 text-cyan-400" />
         <span>Key Sponsored Legislation</span>
       </h3>
       {status === "loading" ? (
-        <p className="text-xs text-slate-400" role="status">Loading sponsored legislation…</p>
+        <p className="text-sm text-slate-400" role="status">Loading sponsored legislation…</p>
       ) : status === "error" ? (
-        <p className="text-xs text-amber-300" role="status">
+        <p className="text-sm text-amber-300" role="status">
           Sponsored legislation is unavailable.
         </p>
       ) : bills.length === 0 ? (
-        <p className="text-xs text-slate-500">No sponsored legislation available.</p>
+        <p className="text-sm text-slate-500">No sponsored legislation available.</p>
       ) : (
         <div className="space-y-3">
           {bills.map((bill, index) => (
@@ -72,16 +72,18 @@ export default function KeySponsoredLegislation({ bioguideId }) {
               key={`${getBillId(bill)}-${index}`}
               className="min-w-0 bg-slate-900 p-3.5 rounded-xl border border-slate-800/80 hover:border-slate-700 transition-colors"
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
-                <span className="min-w-0 text-xs font-bold text-cyan-300 break-words">{getBillId(bill)}</span>
-                <span className="max-w-full px-2 py-0.5 rounded-full text-[10px] font-semibold bg-cyan-950 text-cyan-300 border border-cyan-800 break-words text-right">
-                  {getBillStatus(bill)}
-                </span>
+              <div className="text-sm font-bold text-cyan-300 break-words mb-1.5">
+                {getBillId(bill)}
               </div>
-              <p className="text-xs text-slate-200 font-medium break-words">
+              <p className="text-sm text-slate-200 font-medium break-words">
                 {bill.title ?? "Title unavailable"}
               </p>
-              <div className="text-[10px] text-slate-500 mt-2 break-words">Introduced: {getBillDate(bill)}</div>
+              <dl className="mt-3 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-2 gap-y-1 rounded-lg border border-slate-800/80 bg-slate-950/60 p-2 text-xs">
+                <dt className="text-slate-500">Status</dt>
+                <dd className="min-w-0 text-slate-300 break-words">{getBillStatus(bill)}</dd>
+                <dt className="text-slate-500">Introduced</dt>
+                <dd className="min-w-0 text-slate-300 break-words">{getBillDate(bill)}</dd>
+              </dl>
             </div>
           ))}
         </div>

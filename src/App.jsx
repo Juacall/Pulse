@@ -12,6 +12,8 @@ import CampaignContributionSummary from './CampaignContributionSummary';
 import KeySponsoredLegislation from './KeySponsoredLegislation';
 import { getMemberImageUrl } from './utils/image';
 import { useEffect } from 'react';
+import {AiConsoleModal} from "./components/AiConsoleModal.jsx";
+import { DataResultDisplay } from './components/DataResultDisplay';
 
 const FALLBACK_MEMBER_IMAGE = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80";
 const EMPTY_POLITICIANS = [];
@@ -162,7 +164,7 @@ export default function App() {
           metrics: {
             sponsoredCount: p.sponsoredCount || 0,
             cosponsoredCount: p.cosponsoredCount || 0,
-            passRate: "14.2%",
+            passRate: p.passRate,
             approvalRating: 58
           },
           sponsoredBills: [],
@@ -223,6 +225,34 @@ export default function App() {
       totalBills
     };
   }, [selectedState, currentPoliticians]);
+
+
+
+// src/App.jsx
+  const handleExecuteAiQuery = async (queryText) => {
+    setAiLoading(true);
+    try {
+      const response = await fetch('http://127.0.0.1:8000/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: queryText }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`Server Error (${response.status}):`, errText);
+        return;
+      }
+
+      const data = await response.json();
+      setAiResult(data);
+    } catch (error) {
+      console.error("Query simulation failed:", error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
 
   // Handle User Sentiment Voting
   const handleVote = (politicianId, voteType) => {
@@ -571,7 +601,9 @@ export default function App() {
                               </div>
                               <div>
                                 <span className="text-[10px] text-slate-500 block uppercase font-medium">Pass Rate</span>
-                                <span className="text-xs font-bold text-emerald-400">{p.metrics.passRate}</span>
+                                <span className="text-xs font-bold text-emerald-400">
+                                  {p.metrics.passRate == null ? "N/A" : `${p.metrics.passRate}%`}
+                                </span>
                               </div>
                               <div>
                                 <span className="text-[10px] text-slate-500 block uppercase font-medium">Public Appr.</span>
@@ -596,7 +628,7 @@ export default function App() {
         {/* POLITICIAN DETAIL MODAL DRAWER */}
         {selectedPolitician && (
             <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex justify-end overflow-x-hidden overflow-y-auto">
-              <div className="box-border w-full max-w-3xl min-h-screen bg-slate-900 border-l border-slate-800 p-6 sm:p-8 flex flex-col shadow-2xl relative animate-in slide-in-from-right duration-300 overflow-x-hidden">
+              <div className="box-border w-full max-w-3xl min-h-screen bg-slate-900 border-l border-slate-800 p-4 sm:p-6 flex flex-col shadow-2xl relative animate-in slide-in-from-right duration-300 overflow-x-hidden">
 
                 <button
                     onClick={() => setSelectedPolitician(null)}
@@ -618,17 +650,17 @@ export default function App() {
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-2xl font-bold text-white break-words">{selectedPolitician.name}</h2>
+                        <h2 className="text-3xl font-bold text-white break-words">{selectedPolitician.name}</h2>
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             partyBadgeClass(selectedPolitician.party)
                         }`}>
                       {selectedPolitician.party}
                     </span>
                       </div>
-                      <p className="text-sm text-slate-400 mt-1">
+                      <p className="text-base text-slate-400 mt-1">
                         {selectedPolitician.chamber} • {selectedPolitician.stateName} ({selectedPolitician.district})
                       </p>
-                      <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                      <p className="text-sm text-slate-300 mt-2 leading-relaxed">
                         {selectedPolitician.bio}
                       </p>
                     </div>
@@ -648,13 +680,13 @@ export default function App() {
 
                     {/* 3. PUBLIC OPINION & COMMUNITY SENTIMENT WIDGET */}
                     <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5">
-                      <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
+                      <h3 className="text-base font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
                         <Vote className="w-4 h-4 text-indigo-400" />
                         <span>Public Opinion & Verified Sentiment</span>
                       </h3>
 
                       <div className="mb-4">
-                        <div className="flex justify-between text-xs font-medium mb-1.5">
+                        <div className="flex justify-between text-sm font-medium mb-1.5">
                           <span className="text-emerald-400">Approve ({selectedPolitician.sentimentStats.approve})</span>
                           <span className="text-slate-400">Neutral ({selectedPolitician.sentimentStats.neutral})</span>
                           <span className="text-rose-400">Disapprove ({selectedPolitician.sentimentStats.disapprove})</span>
@@ -678,21 +710,21 @@ export default function App() {
                       <div className="flex items-center space-x-2 mb-6">
                         <button
                             onClick={() => handleVote(selectedPolitician.id, 'approve')}
-                            className="flex-1 py-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-800/80 text-emerald-300 text-xs font-bold flex items-center justify-center space-x-1.5 transition-colors"
+                            className="flex-1 py-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-800/80 text-emerald-300 text-sm font-bold flex items-center justify-center space-x-1.5 transition-colors"
                         >
                           <ThumbsUp className="w-3.5 h-3.5" />
                           <span>Approve</span>
                         </button>
                         <button
                             onClick={() => handleVote(selectedPolitician.id, 'neutral')}
-                            className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-bold flex items-center justify-center space-x-1.5 transition-colors"
+                            className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-sm font-bold flex items-center justify-center space-x-1.5 transition-colors"
                         >
                           <MinusCircle className="w-3.5 h-3.5" />
                           <span>Neutral</span>
                         </button>
                         <button
                             onClick={() => handleVote(selectedPolitician.id, 'disapprove')}
-                            className="flex-1 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 text-xs font-bold flex items-center justify-center space-x-1.5 transition-colors"
+                            className="flex-1 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 text-sm font-bold flex items-center justify-center space-x-1.5 transition-colors"
                         >
                           <ThumbsDown className="w-3.5 h-3.5" />
                           <span>Disapprove</span>
@@ -702,12 +734,12 @@ export default function App() {
                       <CommentForm onAdd={(text, vote) => handleAddComment(selectedPolitician.id, text, vote)} />
 
                       <div className="mt-4 space-y-3">
-                        <span className="text-xs font-semibold text-slate-400 block">Community Commentary ({selectedPolitician.userComments.length})</span>
+                        <span className="text-sm font-semibold text-slate-400 block">Community Commentary ({selectedPolitician.userComments.length})</span>
                         {selectedPolitician.userComments.length === 0 ? (
-                            <p className="text-xs text-slate-500 italic">No public comments yet. Be the first to post!</p>
+                            <p className="text-sm text-slate-500 italic">No public comments yet. Be the first to post!</p>
                         ) : (
                             selectedPolitician.userComments.map(c => (
-                                <div key={c.id} className="bg-slate-900 p-3 rounded-xl border border-slate-800/80 text-xs">
+                                <div key={c.id} className="bg-slate-900 p-3 rounded-xl border border-slate-800/80 text-sm">
                                   <div className="flex items-center justify-between mb-1">
                                     <span className="font-bold text-slate-200">{c.author}</span>
                                     <span className="text-[10px] text-slate-500">{c.time}</span>
@@ -727,103 +759,14 @@ export default function App() {
             </div>
         )}
 
-        {/* AI CONSOLE MODAL */}
-        {isAiModalOpen && (
-            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-              <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
-
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-2 rounded-xl bg-cyan-950 border border-cyan-800 text-cyan-400">
-                      <Cpu className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-white text-base">RAG Query Console (DuckDB + Voyage AI)</h3>
-                      <p className="text-xs text-slate-400">Simulates real-time pre-processing, vector distance search, & SQL execution.</p>
-                    </div>
-                  </div>
-                  <button
-                      onClick={() => setIsAiModalOpen(false)}
-                      className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <div className="mb-4">
-                  <span className="text-xs font-semibold text-slate-400 block mb-2">Sample Prompts:</span>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                        onClick={() => { setAiQuery("How many bills were sponsored by members from Washington state?"); runAiSimulation("How many bills were sponsored by members from Washington state?"); }}
-                        className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs text-cyan-300 transition-colors"
-                    >
-                      WA State Sponsored Bills
-                    </button>
-                    <button
-                        onClick={() => { setAiQuery("Summarize recent California forestry and fire protection legislation."); runAiSimulation("Summarize recent California forestry and fire protection legislation."); }}
-                        className="px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 border border-slate-800 text-xs text-cyan-300 transition-colors"
-                    >
-                      California Wildfire Legislation
-                    </button>
-                  </div>
-                </div>
-
-                <div className="relative mb-6">
-                  <input
-                      type="text"
-                      placeholder="Ask a question about congressional bills or members..."
-                      value={aiQuery}
-                      onChange={(e) => setAiQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && runAiSimulation()}
-                      className="w-full pl-4 pr-24 py-3 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-cyan-500"
-                  />
-                  <button
-                      onClick={() => runAiSimulation()}
-                      disabled={aiLoading}
-                      className="absolute right-2 top-2 px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition-colors flex items-center space-x-1"
-                  >
-                    {aiLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <span>Execute</span>}
-                  </button>
-                </div>
-
-                {aiResult && (
-                    <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
-
-                      <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs">
-                        <div className="flex items-center space-x-2 text-cyan-400 font-bold mb-1">
-                          <Terminal className="w-3.5 h-3.5" />
-                          <span>Pre-Processing Router Output</span>
-                        </div>
-                        <div className="text-slate-300">
-                          <div><span className="text-slate-500">Intent:</span> <span className="text-emerald-400 font-bold">{aiResult.routerAnalysis.intent}</span></div>
-                          <div><span className="text-slate-500">State Normalized:</span> <span className="text-cyan-300">{aiResult.routerAnalysis.detectedState}</span></div>
-                        </div>
-                      </div>
-
-                      <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-xs">
-                        <div className="flex items-center space-x-2 text-blue-400 font-bold mb-1">
-                          <Database className="w-3.5 h-3.5" />
-                          <span>Executed SQL Query</span>
-                        </div>
-                        <pre className="font-mono text-[11px] text-slate-300 bg-slate-900 p-2 rounded border border-slate-800/80 overflow-x-auto">
-                    {aiResult.sqlQuery}
-                  </pre>
-                      </div>
-
-                      <div className="bg-gradient-to-br from-cyan-950/40 to-slate-950 p-4 rounded-xl border border-cyan-500/30 text-xs text-slate-200 leading-relaxed whitespace-pre-wrap">
-                        <div className="flex items-center space-x-2 text-cyan-300 font-bold mb-2">
-                          <Sparkles className="w-4 h-4" />
-                          <span>Synthesized AI Response</span>
-                        </div>
-                        {aiResult.synthesizedAnswer}
-                      </div>
-
-                    </div>
-                )}
-
-              </div>
-            </div>
-        )}
+        {/* AI Modal Functional Component */}
+        <AiConsoleModal
+            isOpen={isAiModalOpen}
+            onClose={() => setIsAiModalOpen(false)}
+            onExecuteQuery={handleExecuteAiQuery}
+            aiLoading={aiLoading}
+            aiResult={aiResult}
+        />
 
       </div>
   );

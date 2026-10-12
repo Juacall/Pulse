@@ -65,22 +65,22 @@ export default function CampaignContributionSummary({ politicianId }) {
   return (
     <>
       <section className="w-full min-w-0 bg-slate-950 border border-slate-800 rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
+        <h3 className="text-base font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
           <DollarSign className="w-4 h-4 text-emerald-400" />
           <span>Campaign Contribution Summary</span>
         </h3>
         {data.summaryStatus === "loading" ? (
-          <p className="text-xs text-slate-400" role="status">Loading contribution summary…</p>
+          <p className="text-sm text-slate-400" role="status">Loading contribution summary…</p>
         ) : data.summaryStatus === "unavailable" ? (
-          <p className="text-xs text-amber-300 mb-3" role="status">
+          <p className="text-sm text-amber-300 mb-3" role="status">
             Contribution summary unavailable.
           </p>
         ) : null}
         <dl className="grid grid-cols-2 gap-2">
           {summaryCards.map(([label, value]) => (
             <div key={label} className="bg-slate-900 p-3 rounded-xl border border-slate-800/80">
-              <dt className="text-[10px] text-slate-500 uppercase font-medium">{label}</dt>
-              <dd className="text-xs font-bold text-slate-200 mt-1">
+              <dt className="text-xs text-slate-500 uppercase font-medium">{label}</dt>
+              <dd className="text-sm font-bold text-slate-200 mt-1">
                 {data.summaryStatus === "loading"
                   ? "Loading…"
                   : label === "Coverage Through"
@@ -93,19 +93,19 @@ export default function CampaignContributionSummary({ politicianId }) {
       </section>
 
       <section className="w-full min-w-0 bg-slate-950 border border-slate-800 rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider mb-2 flex items-center space-x-2">
+        <h3 className="text-base font-bold text-slate-200 uppercase tracking-wider mb-2 flex items-center space-x-2">
           <Building2 className="w-4 h-4 text-emerald-400" />
           <span>Top Donors</span>
         </h3>
-        <p className="text-[11px] text-slate-500 mb-4">
+        <p className="text-xs text-slate-500 mb-4">
           Employer-grouped contribution totals, not individual donors (2026 cycle).
         </p>
         {data.donorsStatus === "loading" ? (
-          <p className="text-xs text-slate-400" role="status">Loading top donors…</p>
+          <p className="text-sm text-slate-400" role="status">Loading top donors…</p>
         ) : data.donorsStatus === "unavailable" ? (
-          <p className="text-xs text-amber-300" role="status">Top donor data unavailable.</p>
+          <p className="text-sm text-amber-300" role="status">Top donor data unavailable.</p>
         ) : data.donors.length === 0 ? (
-          <p className="text-xs text-slate-500">
+          <p className="text-sm text-slate-500">
             No donor rows are available to display; this does not indicate that no contributions were received.
           </p>
         ) : (
@@ -118,13 +118,13 @@ export default function CampaignContributionSummary({ politicianId }) {
                 <div className="flex min-w-0 items-center space-x-3">
                   <Building2 className="w-4 h-4 text-slate-500" />
                   <div className="min-w-0">
-                    <div className="text-xs font-bold text-slate-200 break-words">{donor.donorName}</div>
+                    <div className="text-sm font-bold text-slate-200 break-words">{donor.donorName}</div>
                     {donor.industry && (
-                      <div className="text-[10px] text-slate-400 break-words">{donor.industry}</div>
+                      <div className="text-xs text-slate-400 break-words">{donor.industry}</div>
                     )}
                   </div>
                 </div>
-                <span className="shrink-0 text-xs font-extrabold text-emerald-400">
+                <span className="shrink-0 text-sm font-extrabold text-emerald-400">
                   {formatContributionAmount(donor.amount)}
                 </span>
               </div>

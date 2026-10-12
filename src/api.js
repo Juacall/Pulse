@@ -44,7 +44,7 @@ export async function queryRagAgent(userQuery) {
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userQuery }),
+        body: JSON.stringify({ query: userQuery, debug: false }),
     });
 
     if (!response.ok) {
