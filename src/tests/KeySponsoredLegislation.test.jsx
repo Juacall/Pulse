@@ -8,7 +8,7 @@ const { fetchMemberBills } = vi.hoisted(() => ({
 
 vi.mock("./api", () => ({ fetchMemberBills }));
 
-import KeySponsoredLegislation from "./KeySponsoredLegislation";
+import KeySponsoredLegislation from "../components/KeySponsoredLegislation.jsx";
 
 const deferred = () => {
   let resolve;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FileText } from "lucide-react";
-import { fetchMemberBills } from "./api";
+import { fetchMemberBills } from "../api.js";
 
 function getBillsResponse(data) {
   if (Array.isArray(data)) return data;

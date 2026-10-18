@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Building2, DollarSign } from "lucide-react";
-import { fetchPoliticianDonationSummary, fetchPoliticianDonors } from "./api";
+import { fetchPoliticianDonationSummary, fetchPoliticianDonors } from "../api.js";
 
 const loadingState = {
   summaryStatus: "loading",
