@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import geoUrl from "./assets/states-10m.json";
 import { fetchPoliticians, queryRagAgent } from './api';
-import CampaignContributionSummary from './CampaignContributionSummary';
-import KeySponsoredLegislation from './KeySponsoredLegislation';
+import CampaignContributionSummary from './components/CampaignContributionSummary.jsx';
+import KeySponsoredLegislation from './components/KeySponsoredLegislation.jsx';
 import { getMemberImageUrl } from './utils/image';
 import { useEffect } from 'react';
 import {AiConsoleModal} from "./components/AiConsoleModal.jsx";
@@ -119,6 +119,45 @@ function AccurateUSMap({ selectedState, onSelectState, onHoverState }) {
       </div>
   );
 }
+
+
+function Header({ setIsAiModalOpen, onOpenAuthModal }) {
+  return (
+      <header className="w-full bg-slate-950 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
+        {/* 1. Left Side: App Brand / Logo */}
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold">
+            P
+          </div>
+          <h1 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
+            Pulse
+          </h1>
+        </div>
+
+        {/* 2. Right Side: Button Group (Pushed to the far right) */}
+        <div className="flex items-center space-x-3 ml-auto">
+          {/* AI RAG Console Button */}
+          <button
+              onClick={() => setIsAiModalOpen(true)}
+              className="flex items-center space-x-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow-lg shadow-cyan-900/20 transition-all border border-cyan-400/30"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
+            <span>AI Console</span>
+          </button>
+
+          {/* Log In / Create Account Button */}
+          <button
+              onClick={onOpenAuthModal}
+              className="flex items-center space-x-2 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-700/80 transition-colors"
+          >
+            <User className="w-3.5 h-3.5 text-slate-400" />
+            <span>Log In / Register</span>
+          </button>
+        </div>
+      </header>
+  );
+}
+
 
 export default function App() {
   const [politicians, setPoliticians] = useState([]);
@@ -308,60 +347,13 @@ export default function App() {
     }
   };
 
-  // Live RAG Execution calling FastAPI backend
-  const runAiSimulation = async (queryToRun) => {
-    const activeQuery = queryToRun || aiQuery;
-    if (!activeQuery.trim()) return;
-
-    setAiLoading(true);
-    setAiResult(null);
-
-    try {
-      const realResult = await queryRagAgent(activeQuery);
-      setAiResult(realResult);
-    } catch (err) {
-      console.error("RAG Execution Error:", err);
-      setAiResult({
-        routerAnalysis: { intent: "ERROR", detectedState: "NONE" },
-        synthesizedAnswer: `Failed to execute RAG agent query: ${err.message}`
-      });
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   return (
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950">
 
         {/* HEADER */}
-        <header className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-md border-b border-slate-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-gradient-to-tr from-cyan-500 to-blue-600 p-2 rounded-xl text-slate-950 font-bold shadow-lg shadow-cyan-500/20">
-                <Landmark className="w-6 h-6" />
-              </div>
-              <div>
-              <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white via-slate-200 to-cyan-400 bg-clip-text text-transparent">
-                Pulse
-              </span>
-                <span className="hidden sm:inline-block ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-cyan-950/80 text-cyan-400 border border-cyan-800/50">
-                119th Congress Intelligence
-              </span>
-              </div>
-            </div>
+        <Header setIsAiModalOpen={setIsAiModalOpen} />
 
-            <div className="flex items-center space-x-3">
-              <button
-                  onClick={() => setIsAiModalOpen(true)}
-                  className="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-indigo-500/10 hover:from-cyan-500/20 hover:to-indigo-500/20 border border-cyan-500/30 text-cyan-300 text-sm font-medium transition-all shadow-sm group"
-              >
-                <Sparkles className="w-4 h-4 text-cyan-400 group-hover:rotate-12 transition-transform" />
-                <span className="hidden md:inline">Launch AI RAG Console</span>
-                <span className="md:hidden">AI Console</span>
-              </button>
-            </div>
-          </div>
-        </header>
 
         {/* HERO SECTION WITH TOPOGRAPHY US MAP */}
         <section className="bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 border-b border-slate-800/80 py-8 px-4 sm:px-6 lg:px-8">
