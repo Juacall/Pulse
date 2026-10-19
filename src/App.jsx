@@ -1,19 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
 import {
-  Search, Filter, Shield, User, Landmark, TrendingUp, Vote, MessageSquare,
-  Sparkles, FileText, CheckCircle2, AlertCircle, Clock, ChevronRight,
-  Send, BarChart3, ThumbsUp, ThumbsDown, MinusCircle, MapPin,
-  ExternalLink, Layers, Terminal, Database, Cpu, ArrowUpRight, Award, RefreshCw, X, Map
+  Search, User, Vote,
+  Sparkles, AlertCircle,ChevronRight, ThumbsUp, ThumbsDown,
+  MinusCircle, MapPin, RefreshCw, X, Map
 } from 'lucide-react';
 import geoUrl from "./assets/states-10m.json";
-import { fetchPoliticians, queryRagAgent } from './api';
-import CampaignContributionSummary from './components/CampaignContributionSummary.jsx';
-import KeySponsoredLegislation from './components/KeySponsoredLegislation.jsx';
+import { fetchPoliticians } from './api';
 import { getMemberImageUrl } from './utils/image';
 import { useEffect } from 'react';
-import {AiConsoleModal} from "./components/AiConsoleModal.jsx";
-import { DataResultDisplay } from './components/DataResultDisplay';
+import { AiConsoleModal } from "./components/AiConsoleModal.jsx";
+import { PoliticianDetailDrawer } from "./components/PoliticianDetailDrawer.jsx";
 
 const FALLBACK_MEMBER_IMAGE = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80";
 const EMPTY_POLITICIANS = [];
@@ -159,6 +156,23 @@ function Header({ setIsAiModalOpen, onOpenAuthModal }) {
 }
 
 
+
+// Application Environment Mode: 'dev' | 'test' | 'prod'
+const APP_ENV = (import.meta.env.VITE_APP_ENV || import.meta.env.MODE || 'development').toLowerCase();
+
+const getInitialUserProfile = (env) => {
+  if (env === 'test') {
+    // Test mode: Unverified citizen to test verification prompt and button
+    return { is_identity_verified: false, email: 'test_citizen@example.com' };
+  }
+  if (env === 'prod' || env === 'production') {
+    // Prod mode: Requires authentic login and verification
+    return null;
+  }
+  // Dev mode (default): Auto-verified for rapid feature iteration
+  return { is_identity_verified: true, email: 'dev_citizen@example.com' };
+};
+
 export default function App() {
   const [politicians, setPoliticians] = useState([]);
   const [politicianRequest, setPoliticianRequest] = useState({
@@ -166,6 +180,12 @@ export default function App() {
     status: "idle"
   });
   const [selectedPolitician, setSelectedPolitician] = useState(null);
+  const [userProfile, setUserProfile] = useState(() => getInitialUserProfile(APP_ENV));
+
+  const handleVerifyIdentity = () => {
+    alert("Simulated ID verification successful! Voting unlocked.");
+    setUserProfile({ is_identity_verified: true, email: 'verified_citizen@example.com' });
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedState, setSelectedState] = useState("");
   const [selectedChamber, setSelectedChamber] = useState("ALL");
@@ -318,34 +338,7 @@ export default function App() {
     }
   };
 
-  // Handle Adding Public Comment
-  const handleAddComment = (politicianId, commentText, voteType) => {
-    if (!commentText.trim()) return;
-    const newComment = {
-      id: Date.now(),
-      author: "Verified Citizen (You)",
-      vote: voteType,
-      text: commentText,
-      time: "Just now"
-    };
 
-    setPoliticians(prev => prev.map(p => {
-      if (p.id === politicianId) {
-        return {
-          ...p,
-          userComments: [newComment, ...p.userComments]
-        };
-      }
-      return p;
-    }));
-
-    if (selectedPolitician && selectedPolitician.id === politicianId) {
-      setSelectedPolitician(prev => ({
-        ...prev,
-        userComments: [newComment, ...prev.userComments]
-      }));
-    }
-  };
 
 
   return (
@@ -618,138 +611,13 @@ export default function App() {
         </main>
 
         {/* POLITICIAN DETAIL MODAL DRAWER */}
-        {selectedPolitician && (
-            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex justify-end overflow-x-hidden overflow-y-auto">
-              <div className="box-border w-full max-w-3xl min-h-screen bg-slate-900 border-l border-slate-800 p-4 sm:p-6 flex flex-col shadow-2xl relative animate-in slide-in-from-right duration-300 overflow-x-hidden">
-
-                <button
-                    onClick={() => setSelectedPolitician(null)}
-                    className="absolute top-6 right-6 p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-
-                <div className="w-full min-w-0">
-                  <div className="flex items-start space-x-4 mb-6 pt-2 min-w-0">
-                    <img
-                        src={getMemberImageUrl(selectedPolitician.id, "225x275")}
-                        alt={selectedPolitician.name}
-                        onError={(e) => {
-                          e.currentTarget.onerror = null;
-                          e.currentTarget.src = FALLBACK_MEMBER_IMAGE;
-                        }}
-                        className="w-20 h-20 rounded-2xl object-cover border-2 border-cyan-500/50 shadow-lg"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h2 className="text-3xl font-bold text-white break-words">{selectedPolitician.name}</h2>
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                            partyBadgeClass(selectedPolitician.party)
-                        }`}>
-                      {selectedPolitician.party}
-                    </span>
-                      </div>
-                      <p className="text-base text-slate-400 mt-1">
-                        {selectedPolitician.chamber} • {selectedPolitician.stateName} ({selectedPolitician.district})
-                      </p>
-                      <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-                        {selectedPolitician.bio}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="w-full min-w-0 space-y-6">
-
-                    <CampaignContributionSummary
-                      key={selectedPolitician.id}
-                      politicianId={selectedPolitician.id}
-                    />
-
-                    <KeySponsoredLegislation
-                      key={selectedPolitician.id}
-                      bioguideId={selectedPolitician.id}
-                    />
-
-                    {/* 3. PUBLIC OPINION & COMMUNITY SENTIMENT WIDGET */}
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5">
-                      <h3 className="text-base font-bold text-slate-200 uppercase tracking-wider mb-4 flex items-center space-x-2">
-                        <Vote className="w-4 h-4 text-indigo-400" />
-                        <span>Public Opinion & Verified Sentiment</span>
-                      </h3>
-
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm font-medium mb-1.5">
-                          <span className="text-emerald-400">Approve ({selectedPolitician.sentimentStats.approve})</span>
-                          <span className="text-slate-400">Neutral ({selectedPolitician.sentimentStats.neutral})</span>
-                          <span className="text-rose-400">Disapprove ({selectedPolitician.sentimentStats.disapprove})</span>
-                        </div>
-                        <div className="h-2.5 w-full bg-slate-800 rounded-full overflow-hidden flex">
-                          <div
-                              style={{ width: `${(selectedPolitician.sentimentStats.approve / (selectedPolitician.sentimentStats.approve + selectedPolitician.sentimentStats.disapprove + selectedPolitician.sentimentStats.neutral)) * 100}%` }}
-                              className="bg-emerald-500 h-full"
-                          />
-                          <div
-                              style={{ width: `${(selectedPolitician.sentimentStats.neutral / (selectedPolitician.sentimentStats.approve + selectedPolitician.sentimentStats.disapprove + selectedPolitician.sentimentStats.neutral)) * 100}%` }}
-                              className="bg-slate-500 h-full"
-                          />
-                          <div
-                              style={{ width: `${(selectedPolitician.sentimentStats.disapprove / (selectedPolitician.sentimentStats.approve + selectedPolitician.sentimentStats.disapprove + selectedPolitician.sentimentStats.neutral)) * 100}%` }}
-                              className="bg-rose-500 h-full"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-2 mb-6">
-                        <button
-                            onClick={() => handleVote(selectedPolitician.id, 'approve')}
-                            className="flex-1 py-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-800/80 text-emerald-300 text-sm font-bold flex items-center justify-center space-x-1.5 transition-colors"
-                        >
-                          <ThumbsUp className="w-3.5 h-3.5" />
-                          <span>Approve</span>
-                        </button>
-                        <button
-                            onClick={() => handleVote(selectedPolitician.id, 'neutral')}
-                            className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-sm font-bold flex items-center justify-center space-x-1.5 transition-colors"
-                        >
-                          <MinusCircle className="w-3.5 h-3.5" />
-                          <span>Neutral</span>
-                        </button>
-                        <button
-                            onClick={() => handleVote(selectedPolitician.id, 'disapprove')}
-                            className="flex-1 py-2 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 border border-rose-800/80 text-rose-300 text-sm font-bold flex items-center justify-center space-x-1.5 transition-colors"
-                        >
-                          <ThumbsDown className="w-3.5 h-3.5" />
-                          <span>Disapprove</span>
-                        </button>
-                      </div>
-
-                      <CommentForm onAdd={(text, vote) => handleAddComment(selectedPolitician.id, text, vote)} />
-
-                      <div className="mt-4 space-y-3">
-                        <span className="text-sm font-semibold text-slate-400 block">Community Commentary ({selectedPolitician.userComments.length})</span>
-                        {selectedPolitician.userComments.length === 0 ? (
-                            <p className="text-sm text-slate-500 italic">No public comments yet. Be the first to post!</p>
-                        ) : (
-                            selectedPolitician.userComments.map(c => (
-                                <div key={c.id} className="bg-slate-900 p-3 rounded-xl border border-slate-800/80 text-sm">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="font-bold text-slate-200">{c.author}</span>
-                                    <span className="text-[10px] text-slate-500">{c.time}</span>
-                                  </div>
-                                  <p className="text-slate-300 mt-1">{c.text}</p>
-                                </div>
-                            ))
-                        )}
-                      </div>
-
-                    </div>
-
-                  </div>
-                </div>
-
-              </div>
-            </div>
-        )}
+        <PoliticianDetailDrawer
+          selectedPolitician={selectedPolitician}
+          onClose={() => setSelectedPolitician(null)}
+          userProfile={userProfile}
+          onVerifyIdentity={handleVerifyIdentity}
+          onVote={handleVote}
+        />
 
         {/* AI Modal Functional Component */}
         <AiConsoleModal
@@ -761,45 +629,5 @@ export default function App() {
         />
 
       </div>
-  );
-}
-
-function CommentForm({ onAdd }) {
-  const [text, setText] = useState("");
-  const [vote, setVote] = useState("approve");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!text.trim()) return;
-    onAdd(text, vote);
-    setText("");
-  };
-
-  return (
-      <form onSubmit={handleSubmit} className="space-y-2">
-      <textarea
-          placeholder="Share your public comment or legislative feedback..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          className="w-full p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none h-16"
-      />
-        <div className="flex items-center justify-between">
-          <select
-              value={vote}
-              onChange={(e) => setVote(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-lg text-xs px-2 py-1 text-slate-300"
-          >
-            <option value="approve">Approve</option>
-            <option value="neutral">Neutral</option>
-            <option value="disapprove">Disapprove</option>
-          </select>
-          <button
-              type="submit"
-              className="px-3 py-1 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-colors"
-          >
-            Post Comment
-          </button>
-        </div>
-      </form>
   );
 }
