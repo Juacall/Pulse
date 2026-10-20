@@ -1,161 +1,17 @@
-import React, { useState, useMemo } from 'react';
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
-import {
-  Search, User, Vote,
-  Sparkles, AlertCircle,ChevronRight, ThumbsUp, ThumbsDown,
-  MinusCircle, MapPin, RefreshCw, X, Map
-} from 'lucide-react';
-import geoUrl from "./assets/states-10m.json";
+import React, { useState, useMemo, useEffect } from 'react';
+import { MapPin } from 'lucide-react';
 import { fetchPoliticians } from './api';
-import { getMemberImageUrl } from './utils/image';
-import { useEffect } from 'react';
 import { AiConsoleModal } from "./components/AiConsoleModal.jsx";
 import { PoliticianDetailDrawer } from "./components/PoliticianDetailDrawer.jsx";
+import { Header } from "./components/Header.jsx";
+import { AccurateUSMap } from "./components/AccurateUSMap.jsx";
+import { StateSummaryCard } from "./components/StateSummaryCard.jsx";
+import { PoliticianFilters } from "./components/PoliticianFilters.jsx";
+import { PoliticianGrid } from "./components/PoliticianGrid.jsx";
+import { STATE_NAMES } from "./constants/states";
+import { normalizeParty } from "./utils/party";
 
-const FALLBACK_MEMBER_IMAGE = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80";
 const EMPTY_POLITICIANS = [];
-
-const FIPS_TO_STUSPS = {
-  "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT",
-  "10": "DE", "11": "DC", "12": "FL", "13": "GA", "15": "HI", "16": "ID", "17": "IL",
-  "18": "IN", "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME", "24": "MD",
-  "25": "MA", "26": "MI", "27": "MN", "28": "MS", "29": "MO", "30": "MT", "31": "NE",
-  "32": "NV", "33": "NH", "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND",
-  "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI", "45": "SC", "46": "SD",
-  "47": "TN", "48": "TX", "49": "UT", "50": "VT", "51": "VA", "53": "WA", "54": "WV",
-  "55": "WI", "56": "WY"
-};
-
-const STATE_NAMES = {
-  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
-  CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida", GA: "Georgia",
-  DC: "District of Columbia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas",
-  KY: "Kentucky", LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts",
-  MI: "Michigan", MN: "Minnesota", MS: "Mississippi", MO: "Missouri", MT: "Montana",
-  NE: "Nebraska", NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico",
-  NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio", OK: "Oklahoma",
-  OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina", SD: "South Dakota",
-  TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
-  WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming"
-};
-const STATE_OPTIONS = Object.entries(STATE_NAMES).sort(([, nameA], [, nameB]) => nameA.localeCompare(nameB));
-
-function normalizeParty(party) {
-  const value = String(party ?? "").trim();
-  const normalized = value.toLowerCase();
-
-  if (["d", "democrat", "democratic", "democratic party"].includes(normalized)) {
-    return "Democrat";
-  }
-  if (["r", "republic", "republican", "republican party"].includes(normalized)) {
-    return "Republican";
-  }
-  return value || "Unknown";
-}
-
-function partyBadgeClass(party) {
-  if (party === "Democrat") {
-    return "bg-blue-950/80 text-blue-300 border border-blue-800/60";
-  }
-  if (party === "Republican") {
-    return "bg-red-950/80 text-red-300 border border-red-800/60";
-  }
-  return "bg-slate-800 text-slate-300 border border-slate-700";
-}
-
-function AccurateUSMap({ selectedState, onSelectState, onHoverState }) {
-  return (
-      <div className="w-full h-full relative flex items-center justify-center">
-        <ComposableMap projection="geoAlbersUsa" className="w-full h-full max-h-[360px]">
-          <Geographies geography={geoUrl}>
-            {({ geographies }) =>
-                geographies.map((geo) => {
-                  const stateAbbr = FIPS_TO_STUSPS[geo.id];
-                  const isSelected = selectedState === stateAbbr;
-
-                  return (
-                      <Geography
-                          key={geo.rsmKey}
-                          geography={geo}
-                          tabIndex={-1}
-                          onMouseEnter={() => stateAbbr && onHoverState(stateAbbr)}
-                          onMouseLeave={() => onHoverState(null)}
-                          onClick={() => stateAbbr && onSelectState(stateAbbr)}
-                          fill={isSelected ? "#06b6d4" : "#1e293b"}
-                          stroke="#334155"
-                          strokeWidth={0.75}
-                          style={{
-                            default: {
-                              fill: isSelected ? "#06b6d4" : "#1e293b",
-                              stroke: "#334155",
-                              strokeWidth: 0.75,
-                              outline: "none",
-                              boxShadow: "none",
-                              WebkitTapHighlightColor: "transparent",
-                            },
-                            hover: {
-                              fill: isSelected ? "#0891b2" : "#3b82f6",
-                              stroke: "#38bdf8",
-                              strokeWidth: 1.5,
-                              cursor: "pointer",
-                              outline: "none",
-                              boxShadow: "none",
-                            },
-                            pressed: {
-                              fill: "#0284c7",
-                              outline: "none",
-                              boxShadow: "none",
-                            },
-                          }}
-                      />
-                  );
-                })
-            }
-          </Geographies>
-        </ComposableMap>
-      </div>
-  );
-}
-
-
-function Header({ setIsAiModalOpen, onOpenAuthModal }) {
-  return (
-      <header className="w-full bg-slate-950 border-b border-slate-800 px-6 py-3 flex items-center justify-between">
-        {/* 1. Left Side: App Brand / Logo */}
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold">
-            P
-          </div>
-          <h1 className="text-sm font-bold text-slate-100 uppercase tracking-wider">
-            Pulse
-          </h1>
-        </div>
-
-        {/* 2. Right Side: Button Group (Pushed to the far right) */}
-        <div className="flex items-center space-x-3 ml-auto">
-          {/* AI RAG Console Button */}
-          <button
-              onClick={() => setIsAiModalOpen(true)}
-              className="flex items-center space-x-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-semibold px-3.5 py-2 rounded-xl shadow-lg shadow-cyan-900/20 transition-all border border-cyan-400/30"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
-            <span>AI Console</span>
-          </button>
-
-          {/* Log In / Create Account Button */}
-          <button
-              onClick={onOpenAuthModal}
-              className="flex items-center space-x-2 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl border border-slate-700/80 transition-colors"
-          >
-            <User className="w-3.5 h-3.5 text-slate-400" />
-            <span>Log In / Register</span>
-          </button>
-        </div>
-      </header>
-  );
-}
-
-
 
 // Application Environment Mode: 'dev' | 'test' | 'prod'
 const APP_ENV = (import.meta.env.VITE_APP_ENV || import.meta.env.MODE || 'development').toLowerCase();
@@ -368,34 +224,7 @@ export default function App() {
 
                 {/* State Summary Card */}
                 {stateSummaryStats && (
-                    <div className="mt-6 bg-slate-900 border border-cyan-500/30 rounded-2xl p-4 shadow-xl animate-in fade-in duration-300">
-                      <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-bold text-cyan-300 flex items-center space-x-1.5">
-                      <Map className="w-4 h-4" />
-                      <span>{stateSummaryStats.stateName} ({stateSummaryStats.code}) Selected</span>
-                    </span>
-                        <button
-                            onClick={() => setSelectedState("")}
-                            className="text-[11px] font-semibold text-slate-400 hover:text-white underline"
-                        >
-                          Clear Selection
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                        <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
-                          <span className="text-[10px] text-slate-500 block uppercase">Members</span>
-                          <span className="font-bold text-slate-200">{stateSummaryStats.totalMembers}</span>
-                        </div>
-                        <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
-                          <span className="text-[10px] text-slate-500 block uppercase">Parties</span>
-                          <span className="font-bold text-blue-400">{stateSummaryStats.democrats}D</span> / <span className="font-bold text-red-400">{stateSummaryStats.republicans}R</span>
-                        </div>
-                        <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
-                          <span className="text-[10px] text-slate-500 block uppercase">Bills</span>
-                          <span className="font-bold text-cyan-400">{stateSummaryStats.totalBills}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <StateSummaryCard stats={stateSummaryStats} onClear={() => setSelectedState("")} />
                 )}
               </div>
 
@@ -436,177 +265,21 @@ export default function App() {
         {/* MAIN CONTENT AREA */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-          {/* SEARCH & FILTERS BAR */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-8 shadow-xl">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <PoliticianFilters
+              searchQuery={searchQuery} onSearchChange={setSearchQuery}
+              selectedState={selectedState} onStateChange={setSelectedState}
+              selectedChamber={selectedChamber} onChamberChange={setSelectedChamber}
+              selectedParty={selectedParty} onPartyChange={setSelectedParty}
+          />
 
-              {/* Search Input */}
-              <div className="md:col-span-5 relative">
-                <Search className="w-5 h-5 absolute left-3.5 top-3 text-slate-500" />
-                <input
-                    type="text"
-                    placeholder="Search politician name, bill title, or topic..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
-                />
-              </div>
-
-              {/* State Filter */}
-              <div className="md:col-span-2">
-                <select
-                    value={selectedState}
-                    onChange={(e) => setSelectedState(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
-                >
-                  <option value="">Select a state</option>
-                  {STATE_OPTIONS.map(([code, name]) => (
-                    <option key={code} value={code}>{code} - {name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Chamber Filter */}
-              <div className="md:col-span-2">
-                <select
-                    value={selectedChamber}
-                    onChange={(e) => setSelectedChamber(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
-                >
-                  <option value="ALL">All Chambers</option>
-                  <option value="House">House</option>
-                  <option value="Senate">Senate</option>
-                </select>
-              </div>
-
-              {/* Party Filter */}
-              <div className="md:col-span-3">
-                <select
-                    value={selectedParty}
-                    onChange={(e) => setSelectedParty(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
-                >
-                  <option value="ALL">All Parties</option>
-                  <option value="Democrat">Democrat</option>
-                  <option value="Republican">Republican</option>
-                  <option value="Independent">Independent</option>
-                </select>
-              </div>
-
-            </div>
-          </div>
-
-          {/* POLITICIANS DIRECTORY GRID */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-slate-200 flex items-center space-x-2">
-                <User className="w-5 h-5 text-cyan-400" />
-                <span>Congressional Members ({filteredPoliticians.length})</span>
-              </h2>
-            </div>
-
-            {!selectedState ? (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
-                  <MapPin className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                  <p className="text-slate-400 font-medium">Select a state to view its congressional members.</p>
-                </div>
-            ) : politiciansLoading ? (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
-                  <RefreshCw className="w-10 h-10 text-slate-500 mx-auto mb-3 animate-spin" />
-                  <p className="text-slate-400 font-medium">Loading congressional members…</p>
-                </div>
-            ) : politicianRequest.filterKey === currentFilterKey && politicianRequest.status === "error" ? (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
-                  <AlertCircle className="w-10 h-10 text-rose-400 mx-auto mb-3" />
-                  <p className="text-slate-400 font-medium">Could not load congressional members. Please try again.</p>
-                </div>
-            ) : filteredPoliticians.length === 0 ? (
-                <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-12 text-center">
-                  <AlertCircle className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-                  <p className="text-slate-400 font-medium">No congressional members found matching these filters.</p>
-                  <button
-                      onClick={() => { setSearchQuery(""); setSelectedState(""); setSelectedChamber("ALL"); setSelectedParty("ALL"); }}
-                      className="mt-4 text-xs font-semibold text-cyan-400 hover:underline"
-                  >
-                    Reset All Filters
-                  </button>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredPoliticians.map((p) => {
-                    const totalVotes = p.sentimentStats.approve + p.sentimentStats.disapprove + p.sentimentStats.neutral;
-                    const approvePct = totalVotes ? Math.round((p.sentimentStats.approve / totalVotes) * 100) : 50;
-
-                    return (
-                        <div
-                            key={p.id}
-                            onClick={() => setSelectedPolitician(p)}
-                            className="bg-slate-900 border border-slate-800 hover:border-cyan-500/50 rounded-2xl p-5 transition-all duration-200 hover:shadow-xl hover:shadow-cyan-950/30 cursor-pointer group flex flex-col justify-between"
-                        >
-                          <div>
-                            <div className="flex items-start justify-between mb-4">
-                              <div className="flex items-center space-x-3">
-                                <img
-                                    src={getMemberImageUrl(p.id, "225x275")}
-                                    alt={p.name}
-                                    onError={(e) => {
-                                      e.currentTarget.onerror = null;
-                                      e.currentTarget.src = FALLBACK_MEMBER_IMAGE;
-                                    }}
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-slate-700 group-hover:border-cyan-400 transition-colors"
-                                />
-                                <div>
-                                  <h3 className="font-bold text-white group-hover:text-cyan-300 transition-colors text-base">
-                                    {p.name}
-                                  </h3>
-                                  <div className="flex items-center space-x-1.5 text-xs text-slate-400 mt-0.5">
-                                    <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                                    <span>{p.stateName} ({p.state})</span>
-                                    <span>•</span>
-                                    <span>{p.chamber}</span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                  partyBadgeClass(p.party)
-                              }`}>
-                          {p.party}
-                        </span>
-                            </div>
-
-                            <p className="text-xs text-slate-400 line-clamp-2 mb-4 leading-relaxed">
-                              {p.bio}
-                            </p>
-
-                            <div className="grid grid-cols-3 gap-2 bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-center mb-4">
-                              <div>
-                                <span className="text-[10px] text-slate-500 block uppercase font-medium">Bills</span>
-                                <span className="text-xs font-bold text-slate-200">{p.metrics.sponsoredCount}</span>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-slate-500 block uppercase font-medium">Pass Rate</span>
-                                <span className="text-xs font-bold text-emerald-400">
-                                  {p.metrics.passRate == null ? "N/A" : `${p.metrics.passRate}%`}
-                                </span>
-                              </div>
-                              <div>
-                                <span className="text-[10px] text-slate-500 block uppercase font-medium">Public Appr.</span>
-                                <span className="text-xs font-bold text-cyan-400">{approvePct}%</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-cyan-400 font-medium group-hover:translate-x-1 transition-transform">
-                            <span>View Full Profile & Donors</span>
-                            <ChevronRight className="w-4 h-4" />
-                          </div>
-                        </div>
-                    );
-                  })}
-                </div>
-            )}
-          </div>
+          <PoliticianGrid
+              politicians={filteredPoliticians}
+              selectedState={selectedState}
+              isLoading={politiciansLoading}
+              hasError={hasCurrentPoliticians && politicianRequest.status === "error"}
+              onSelect={setSelectedPolitician}
+              onResetFilters={() => { setSearchQuery(""); setSelectedState(""); setSelectedChamber("ALL"); setSelectedParty("ALL"); }}
+          />
 
         </main>
 
