@@ -2,10 +2,16 @@ import React from 'react';
 import { ChevronRight, MapPin } from 'lucide-react';
 import { getMemberImageUrl } from "../utils/image";
 import { partyBadgeClass } from "../utils/party";
+import { getMissedPercentage } from "../utils/rollCall";
 
 const FALLBACK_MEMBER_IMAGE = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80";
 
+const HIGH_ABSENCE_THRESHOLD = 8.0;
+
 export function PoliticianCard({ politician: p, onSelect }) {
+  const missedPercentage = getMissedPercentage(p.rollCallVotes);
+  const isHighAbsence = (missedPercentage ?? 0) > HIGH_ABSENCE_THRESHOLD;
+
   const totalVotes = p.sentimentStats.approve + p.sentimentStats.disapprove + p.sentimentStats.neutral;
   const approvePct = totalVotes ? Math.round((p.sentimentStats.approve / totalVotes) * 100) : 50;
 
@@ -39,9 +45,21 @@ export function PoliticianCard({ politician: p, onSelect }) {
               </div>
             </div>
 
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${partyBadgeClass(p.party)}`}>
-              {p.party}
-            </span>
+            <div className="flex flex-col items-end gap-1.5">
+              <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${partyBadgeClass(p.party)}`}>
+                {p.party}
+              </span>
+              <span
+                  title="Share of roll call votes missed"
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                      isHighAbsence
+                          ? "bg-amber-950/80 text-amber-300 border-amber-800/60"
+                          : "bg-slate-800 text-slate-300 border-slate-700"
+                  }`}
+              >
+                Absence · {missedPercentage == null ? "N/A" : `${Number(missedPercentage).toFixed(1)}%`}
+              </span>
+            </div>
           </div>
 
           <p className="text-xs text-slate-400 line-clamp-2 mb-4 leading-relaxed">

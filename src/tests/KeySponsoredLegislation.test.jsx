@@ -6,7 +6,7 @@ const { fetchMemberBills } = vi.hoisted(() => ({
   fetchMemberBills: vi.fn()
 }));
 
-vi.mock("./api", () => ({ fetchMemberBills }));
+vi.mock("../api.js", () => ({ fetchMemberBills }));
 
 import KeySponsoredLegislation from "../components/KeySponsoredLegislation.jsx";
 

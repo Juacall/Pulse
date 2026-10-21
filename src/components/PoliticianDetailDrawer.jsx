@@ -1,20 +1,12 @@
 import { X } from 'lucide-react';
 import CampaignContributionSummary from './CampaignContributionSummary.jsx';
 import KeySponsoredLegislation from './KeySponsoredLegislation.jsx';
+import { MemberOverviewStats } from './MemberOverviewStats.jsx';
 import { VoteComponent } from './VoteComponent.jsx';
 import { getMemberImageUrl } from '../utils/image';
+import { partyBadgeClass } from '../utils/party';
 
 const FALLBACK_MEMBER_IMAGE = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=300&q=80";
-
-function partyBadgeClass(party) {
-  if (party === "Democrat") {
-    return "bg-blue-950/80 text-blue-300 border border-blue-800/60";
-  }
-  if (party === "Republican") {
-    return "bg-red-950/80 text-red-300 border border-red-800/60";
-  }
-  return "bg-slate-800 text-slate-300 border border-slate-700";
-}
 
 export function PoliticianDetailDrawer({
   selectedPolitician,
@@ -64,6 +56,8 @@ export function PoliticianDetailDrawer({
           </div>
 
           <div className="w-full min-w-0 space-y-6">
+
+            <MemberOverviewStats politician={selectedPolitician} />
 
             {/* PUBLIC OPINION & VERIFIED SENTIMENT */}
             <VoteComponent
