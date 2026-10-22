@@ -1,22 +1,21 @@
 import { useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
 import { Turnstile } from '@marsidev/react-turnstile';
 import { MinusCircle, ThumbsDown, ThumbsUp, Vote } from 'lucide-react';
+import {useAuthModal} from "../hooks/useAuthModal.js";
+import {supabase} from "../lib/supabase.js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-anon-key';
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export function VoteComponent({
     politicianId,
-    userProfile,
+    user,
     selectedPolitician,
     onVerifyIdentity,
     onVote
 }) {
     const [turnstileToken, setTurnstileToken] = useState(null);
     const [loading, setLoading] = useState(false);
+    const { openAuthModal } = useAuthModal();
+
 
     const activePoliticianId = politicianId || selectedPolitician?.id;
     const sentimentStats = selectedPolitician?.sentimentStats || { approve: 0, neutral: 0, disapprove: 0 };
@@ -41,8 +40,28 @@ export function VoteComponent({
         const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
         const url = new URL("/api/vote", baseUrl);
 
-        if (!userProfile?.is_identity_verified) {
-            alert("Please complete ID verification before voting.");
+        // 1. Unauthenticated -> Prompt Sign In
+        if(!user){
+            openAuthModal("login")
+        }
+
+        // 2. Authenticated but Unverified -> Initiate Stripe Verification Session
+        if (!user?.user_metadata?.is_identity_verified) {
+            try {
+                const response = await fetch('/api/identity/create-session', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${user.session?.access_token}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+                const { url } = await response.json();
+                if (url) {
+                    window.location.href = url; // Redirect directly to Stripe Identity host
+                }
+            } catch (err) {
+                console.error('Failed to initiate Stripe verification:', err);
+            }
             return;
         }
 

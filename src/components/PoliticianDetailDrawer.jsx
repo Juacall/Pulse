@@ -11,7 +11,7 @@ const FALLBACK_MEMBER_IMAGE = "https://images.unsplash.com/photo-1573496359142-b
 export function PoliticianDetailDrawer({
   selectedPolitician,
   onClose,
-  userProfile,
+  user,
   onVerifyIdentity,
   onVote
 }) {
@@ -64,7 +64,7 @@ export function PoliticianDetailDrawer({
                 key={selectedPolitician.id}
                 politicianId={selectedPolitician.id}
                 selectedPolitician={selectedPolitician}
-                userProfile={userProfile}
+                user={user}
                 onVerifyIdentity={onVerifyIdentity}
                 onVote={onVote}
             />

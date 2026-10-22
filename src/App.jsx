@@ -7,7 +7,7 @@ import { PoliticianFilters } from "./components/PoliticianFilters.jsx";
 import { PoliticianGrid } from "./components/PoliticianGrid.jsx";
 import { usePoliticians } from "./hooks/usePoliticians";
 import { useAiConsole } from "./hooks/useAiConsole";
-import { useUserProfile } from "./hooks/useUserProfile";
+import { useAuth } from "./hooks/useAuth";
 
 export default function App() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -26,7 +26,7 @@ export default function App() {
     } = usePoliticians({ selectedState, selectedChamber, searchQuery, selectedParty });
 
     const ai = useAiConsole();
-    const { userProfile, handleVerifyIdentity } = useUserProfile();
+    const { user, simulateVerifyIdentity } = useAuth();
 
     const resetFilters = () => {
         setSearchQuery("");
@@ -35,50 +35,49 @@ export default function App() {
         setSelectedParty("ALL");
     };
 
+    return (
+        <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950">
+            <Header setIsAiModalOpen={ai.setIsOpen} />
 
-  return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950">
-        <Header setIsAiModalOpen={ai.setIsOpen} />
+            <HeroSection
+                selectedState={selectedState}
+                onSelectState={setSelectedState}
+                stateSummaryStats={stateSummaryStats}
+            />
 
-        <HeroSection
-            selectedState={selectedState}
-            onSelectState={setSelectedState}
-            stateSummaryStats={stateSummaryStats}
-        />
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <PoliticianFilters
+                    searchQuery={searchQuery} onSearchChange={setSearchQuery}
+                    selectedState={selectedState} onStateChange={setSelectedState}
+                    selectedChamber={selectedChamber} onChamberChange={setSelectedChamber}
+                    selectedParty={selectedParty} onPartyChange={setSelectedParty}
+                />
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <PoliticianFilters
-              searchQuery={searchQuery} onSearchChange={setSearchQuery}
-              selectedState={selectedState} onStateChange={setSelectedState}
-              selectedChamber={selectedChamber} onChamberChange={setSelectedChamber}
-              selectedParty={selectedParty} onPartyChange={setSelectedParty}
-          />
+                <PoliticianGrid
+                    politicians={filteredPoliticians}
+                    selectedState={selectedState}
+                    isLoading={isLoading}
+                    hasError={hasError}
+                    onSelect={setSelectedPolitician}
+                    onResetFilters={resetFilters}
+                />
+            </main>
 
-          <PoliticianGrid
-              politicians={filteredPoliticians}
-              selectedState={selectedState}
-              isLoading={isLoading}
-              hasError={hasError}
-              onSelect={setSelectedPolitician}
-              onResetFilters={resetFilters}
-          />
-        </main>
+            <PoliticianDetailDrawer
+                selectedPolitician={selectedPolitician}
+                onClose={() => setSelectedPolitician(null)}
+                user={user}
+                onVerifyIdentity={simulateVerifyIdentity}
+                onVote={handleVote}
+            />
 
-        <PoliticianDetailDrawer
-          selectedPolitician={selectedPolitician}
-          onClose={() => setSelectedPolitician(null)}
-          userProfile={userProfile}
-          onVerifyIdentity={handleVerifyIdentity}
-          onVote={handleVote}
-        />
-
-        <AiConsoleModal
-            isOpen={ai.isOpen}
-            onClose={() => ai.setIsOpen(false)}
-            onExecuteQuery={ai.executeQuery}
-            aiLoading={ai.loading}
-            aiResult={ai.result}
-        />
-      </div>
-  );
+            <AiConsoleModal
+                isOpen={ai.isOpen}
+                onClose={() => ai.setIsOpen(false)}
+                onExecuteQuery={ai.executeQuery}
+                aiLoading={ai.loading}
+                aiResult={ai.result}
+            />
+        </div>
+    );
 }
