@@ -1,5 +1,7 @@
 // src/api.js
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE_URL =
+    import.meta.env.VITE_API_URL ||
+    (typeof window !== "undefined" ? window.location.origin : "http://localhost:8000");
 
 export async function fetchPoliticians(state = "ALL", chamber = "ALL") {
     const url = new URL(`${API_BASE_URL}/api/politicians`);

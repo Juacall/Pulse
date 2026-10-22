@@ -38,6 +38,8 @@ export function VoteComponent({
 
     const handleVote = async (typeOrId, possibleType) => {
         const voteType = possibleType || typeOrId;
+        const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
+        const url = new URL("/api/vote", baseUrl);
 
         if (!userProfile?.is_identity_verified) {
             alert("Please complete ID verification before voting.");
@@ -60,7 +62,7 @@ export function VoteComponent({
                 console.warn("Supabase auth session fetch skipped:", authErr);
             }
 
-            const response = await fetch('http://127.0.0.1:8000/api/vote', {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

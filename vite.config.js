@@ -6,6 +6,12 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    allowedHosts: ['lettuce-verse-kindling.ngrok-free.dev'],
+    allowedHosts: ['lettuce-verse-kindling.ngrok-free.dev', '.ngrok-free.dev'],
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    }
   },
 })

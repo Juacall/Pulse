@@ -1,26 +1,31 @@
-import { useState, useMemo, useEffect } from 'react';
-import { fetchPoliticians } from '../api';
-import { STATE_NAMES } from '../constants/states';
-import { normalizeParty } from '../utils/party';
+import { useState, useMemo, useEffect } from "react";
+import { STATE_NAMES } from "../constants/states";
 
-const EMPTY_POLITICIANS = [];
+function normalizeParty(partyStr) {
+  if (!partyStr) return "Independent";
+  const p = partyStr.toLowerCase();
+  if (p.includes("democrat")) return "Democrat";
+  if (p.includes("republican")) return "Republican";
+  return "Independent";
+}
 
 function enrichPolitician(p) {
-  const stateName = STATE_NAMES[p.state] || p.state;
+  const stateCode = p.state || "US";
+  const stateName = (STATE_NAMES && STATE_NAMES[stateCode]) || stateCode;
   return {
     ...p,
     party: normalizeParty(p.party),
     stateName,
-    bio: `${p.name} represents ${stateName} in the U.S. ${p.chamber}.`,
+    bio: `${p.name} represents ${stateName} in the U.S. ${p.chamber || "Congress"}.`,
     metrics: {
       sponsoredCount: p.sponsoredCount || 0,
       cosponsoredCount: p.cosponsoredCount || 0,
-      passRate: p.passRate,
-      approvalRating: 58
+      passRate: p.passRate ?? null,
+      approvalRating: 58,
     },
     sponsoredBills: [],
     sentimentStats: { approve: 120, disapprove: 45, neutral: 15 },
-    userComments: []
+    userComments: [],
   };
 }
 
@@ -28,84 +33,93 @@ const incrementVote = (p, voteType) => ({
   ...p,
   sentimentStats: {
     ...p.sentimentStats,
-    [voteType]: p.sentimentStats[voteType] + 1
-  }
+    [voteType]: (p.sentimentStats[voteType] || 0) + 1,
+  },
 });
 
-export function usePoliticians({ selectedState, selectedChamber, searchQuery, selectedParty }) {
+export function usePoliticians({
+                                 selectedState = "ALL",
+                                 selectedChamber = "ALL",
+                                 searchQuery = "",
+                                 selectedParty = "ALL",
+                               }) {
   const [politicians, setPoliticians] = useState([]);
-  const [politicianRequest, setPoliticianRequest] = useState({ filterKey: null, status: "idle" });
+  const [status, setStatus] = useState("loading"); // "loading" | "loaded" | "error"
   const [selectedPolitician, setSelectedPolitician] = useState(null);
 
-  const currentFilterKey = JSON.stringify([selectedState, selectedChamber]);
-  const hasCurrentPoliticians = politicianRequest.filterKey === currentFilterKey;
-  const currentPoliticians = hasCurrentPoliticians && politicianRequest.status === "loaded"
-    ? politicians
-    : EMPTY_POLITICIANS;
-  const isLoading = Boolean(selectedState) &&
-    (!hasCurrentPoliticians || politicianRequest.status === "loading");
-  const hasError = hasCurrentPoliticians && politicianRequest.status === "error";
-
-  // Fetch members whenever the state or chamber filter changes
   useEffect(() => {
-    if (!selectedState) return;
+    const cleanSearch = searchQuery.trim();
+
+    if (cleanSearch && cleanSearch.length < 2) {
+      return;
+    }
+
     let isCurrentRequest = true;
 
-    async function loadData() {
+    const timer = setTimeout(async () => {
+      setStatus("loading");
+
       try {
-        const data = await fetchPoliticians(selectedState, selectedChamber);
-        if (!isCurrentRequest) return;
-        setPoliticians(data.map(enrichPolitician));
-        setPoliticianRequest({ filterKey: currentFilterKey, status: "loaded" });
+        const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
+        const url = new URL("/api/politicians", baseUrl);
+
+        if (cleanSearch) url.searchParams.append("search", cleanSearch);
+        if (selectedState && selectedState !== "ALL") url.searchParams.append("state", selectedState);
+        if (selectedChamber && selectedChamber !== "ALL") url.searchParams.append("chamber", selectedChamber);
+        if (selectedParty && selectedParty !== "ALL") url.searchParams.append("party", selectedParty);
+
+        const response = await fetch(url.toString());
+        if (!response.ok) throw new Error("Failed to fetch politicians");
+
+        const data = await response.json();
+
+        if (isCurrentRequest) {
+          setPoliticians(data.map(enrichPolitician));
+          setStatus("loaded");
+        }
       } catch (err) {
-        if (!isCurrentRequest) return;
-        console.error("Error loading politicians from DuckDB backend:", err);
-        setPoliticianRequest({ filterKey: currentFilterKey, status: "error" });
+        if (isCurrentRequest) {
+          console.error("Error loading politicians:", err);
+          setStatus("error");
+        }
       }
-    }
-    loadData();
+    }, 300);
+
     return () => {
       isCurrentRequest = false;
+      clearTimeout(timer);
     };
-  }, [selectedState, selectedChamber, currentFilterKey]);
-
-  // Client-side search and party filter over fetched results
-  const filteredPoliticians = useMemo(() => {
-    const query = searchQuery.toLowerCase();
-    return currentPoliticians.filter(p => {
-      const matchesSearch = p.name.toLowerCase().includes(query) ||
-          p.stateName.toLowerCase().includes(query) ||
-          p.sponsoredBills.some(b => b.title.toLowerCase().includes(query));
-      const matchesParty = selectedParty === "ALL" || p.party === selectedParty;
-      return matchesSearch && matchesParty;
-    });
-  }, [currentPoliticians, searchQuery, selectedParty]);
+  }, [selectedState, selectedChamber, searchQuery, selectedParty]);
 
   const stateSummaryStats = useMemo(() => {
-    if (!selectedState) return null;
-    const members = currentPoliticians.filter(p => p.state === selectedState);
+    if (!selectedState || selectedState === "ALL") return null;
+    const members = politicians.filter((p) => p.state === selectedState);
     return {
-      stateName: STATE_NAMES[selectedState] || selectedState,
+      stateName: (STATE_NAMES && STATE_NAMES[selectedState]) || selectedState,
       code: selectedState,
       totalMembers: members.length,
-      democrats: members.filter(m => m.party === "Democrat").length,
-      republicans: members.filter(m => m.party === "Republican").length,
-      totalBills: members.reduce((sum, m) => sum + m.metrics.sponsoredCount, 0)
+      democrats: members.filter((m) => m.party === "Democrat").length,
+      republicans: members.filter((m) => m.party === "Republican").length,
+      totalBills: members.reduce((sum, m) => sum + (m.metrics?.sponsoredCount || 0), 0),
     };
-  }, [selectedState, currentPoliticians]);
+  }, [selectedState, politicians]);
 
   const handleVote = (politicianId, voteType) => {
-    setPoliticians(prev => prev.map(p => (p.id === politicianId ? incrementVote(p, voteType) : p)));
-    setSelectedPolitician(prev => (prev && prev.id === politicianId ? incrementVote(prev, voteType) : prev));
+    setPoliticians((prev) =>
+        prev.map((p) => (p.id === politicianId ? incrementVote(p, voteType) : p))
+    );
+    setSelectedPolitician((prev) =>
+        prev && prev.id === politicianId ? incrementVote(prev, voteType) : prev
+    );
   };
 
   return {
-    filteredPoliticians,
+    filteredPoliticians: politicians,
     stateSummaryStats,
-    isLoading,
-    hasError,
+    isLoading: status === "loading",
+    hasError: status === "error",
     selectedPolitician,
     setSelectedPolitician,
-    handleVote
+    handleVote,
   };
 }

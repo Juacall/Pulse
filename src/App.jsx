@@ -10,24 +10,31 @@ import { useAiConsole } from "./hooks/useAiConsole";
 import { useUserProfile } from "./hooks/useUserProfile";
 
 export default function App() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedChamber, setSelectedChamber] = useState("ALL");
-  const [selectedParty, setSelectedParty] = useState("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedState, setSelectedState] = useState("ALL");
+    const [selectedChamber, setSelectedChamber] = useState("ALL");
+    const [selectedParty, setSelectedParty] = useState("ALL");
 
-  const {
-    filteredPoliticians, stateSummaryStats, isLoading, hasError,
-    selectedPolitician, setSelectedPolitician, handleVote
-  } = usePoliticians({ selectedState, selectedChamber, searchQuery, selectedParty });
-  const ai = useAiConsole();
-  const { userProfile, handleVerifyIdentity } = useUserProfile();
+    const {
+        filteredPoliticians,
+        stateSummaryStats,
+        isLoading,
+        hasError,
+        selectedPolitician,
+        setSelectedPolitician,
+        handleVote,
+    } = usePoliticians({ selectedState, selectedChamber, searchQuery, selectedParty });
 
-  const resetFilters = () => {
-    setSearchQuery("");
-    setSelectedState("");
-    setSelectedChamber("ALL");
-    setSelectedParty("ALL");
-  };
+    const ai = useAiConsole();
+    const { userProfile, handleVerifyIdentity } = useUserProfile();
+
+    const resetFilters = () => {
+        setSearchQuery("");
+        setSelectedState("ALL");
+        setSelectedChamber("ALL");
+        setSelectedParty("ALL");
+    };
+
 
   return (
       <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950">
