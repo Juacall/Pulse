@@ -1,47 +1,27 @@
 // src/context/AuthProvider.jsx
 import React, { useEffect, useState } from 'react';
 import { AuthContext } from './AuthContext';
-import {supabase} from "../lib/supabase.js";
-import {APP_ENV, getInitialUser} from "../config/env.js"; // 👈 Import shared context reference
-
-;
+import { supabase } from '../lib/supabase';
+import { APP_ENV, getInitialUser } from '../config/env';
 
 export function AuthProvider({ children }) {
     const [user, setUser] = useState(null);
-    const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Helper to fetch custom metadata from public.profiles
-    const fetchUserProfile = async (userId) => {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single();
-
-        if (!error && data) {
-            setProfile(data);
-        }
-    };
-
     useEffect(() => {
-        // 1. Fetch initial active session on app load
+        // 1. App load: Seed with initial session or env mock
         supabase.auth.getSession().then(({ data: { session } }) => {
-            const currentUser = session?.user ?? null;
-            setUser(currentUser);
-            if (currentUser) fetchUserProfile(currentUser.id);
+            const activeUser = session?.user ?? getInitialUser(APP_ENV);
+            setUser(activeUser);
             setLoading(false);
         });
 
-        // 2. Listen for global auth state shifts (OAuth redirect, Sign In, Sign Out)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            const currentUser = session?.user ?? getInitialUser(APP_ENV);
-            setUser(currentUser);
-
-            if (currentUser) {
-                await fetchUserProfile(currentUser.id);
-            } else {
-                setProfile(null);
+        // 2. Auth state shifts: Explicitly handle login vs logout
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT') {
+                setUser(null); // Keep user logged out when they explicitly click Sign Out
+            } else if (session?.user) {
+                setUser(session.user); // Logged in with real account
             }
             setLoading(false);
         });
@@ -49,8 +29,22 @@ export function AuthProvider({ children }) {
         return () => subscription.unsubscribe();
     }, []);
 
+    // Dev Helper: Simulate identity verification locally
+    const simulateVerifyIdentity = () => {
+        setUser((prevUser) => {
+            if (!prevUser) return prevUser;
+            return {
+                ...prevUser,
+                user_metadata: {
+                    ...prevUser.user_metadata,
+                    is_identity_verified: true,
+                },
+            };
+        });
+    };
+
     return (
-        <AuthContext.Provider value={{ user, profile, loading, supabase }}>
+        <AuthContext.Provider value={{ user, loading, supabase, simulateVerifyIdentity }}>
             {children}
         </AuthContext.Provider>
     );

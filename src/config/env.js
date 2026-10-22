@@ -8,14 +8,15 @@ export const APP_ENV = (import.meta.env.VITE_APP_ENV || import.meta.env.MODE || 
 export const getInitialUser = (env = APP_ENV) => {
   if (env === 'test') {
     // Test mode: Unverified user to test Stripe verification triggers
-    return {
-      id: '00000000-0000-0000-0000-000000000001',
-      email: 'test_citizen@example.com',
-      user_metadata: {
-        full_name: 'Test Citizen',
-        is_identity_verified: false,
-      },
-    };
+    return null
+    // return {
+    //   id: '00000000-0000-0000-0000-000000000001',
+    //   email: 'test_citizen@example.com',
+    //   user_metadata: {
+    //     full_name: 'Test Citizen',
+    //     is_identity_verified: false,
+    //   },
+    // };
   }
 
   if (env === 'prod' || env === 'production') {

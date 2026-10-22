@@ -8,12 +8,14 @@ import { PoliticianGrid } from "./components/PoliticianGrid.jsx";
 import { usePoliticians } from "./hooks/usePoliticians";
 import { useAiConsole } from "./hooks/useAiConsole";
 import { useAuth } from "./hooks/useAuth";
+import {AccountDrawer} from "./components/AccountDrawer.jsx";
 
 export default function App() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedState, setSelectedState] = useState("ALL");
     const [selectedChamber, setSelectedChamber] = useState("ALL");
     const [selectedParty, setSelectedParty] = useState("ALL");
+    const [isAccountDrawerOpen, setIsAccountDrawerOpen] = useState(false);
 
     const {
         filteredPoliticians,
@@ -37,7 +39,7 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950">
-            <Header setIsAiModalOpen={ai.setIsOpen} />
+            <Header setIsAiModalOpen={ai.setIsOpen} onOpenAccount={() => setIsAccountDrawerOpen(true)} />
 
             <HeroSection
                 selectedState={selectedState}
@@ -77,6 +79,11 @@ export default function App() {
                 onExecuteQuery={ai.executeQuery}
                 aiLoading={ai.loading}
                 aiResult={ai.result}
+            />
+
+            <AccountDrawer
+                isOpen={isAccountDrawerOpen}
+                onClose={() => setIsAccountDrawerOpen(false)}
             />
         </div>
     );

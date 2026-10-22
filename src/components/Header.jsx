@@ -3,7 +3,7 @@ import { Sparkles, User, UserCheck } from 'lucide-react';
 import { useAuthModal } from "../hooks/useAuthModal.js";
 import { useAuth } from "../hooks/useAuth.js";
 
-export function Header({ setIsAiModalOpen, onOpenAccountPage }) {
+export function Header({ setIsAiModalOpen, onOpenAccount }) {
     const { user } = useAuth();
     const { openAuthModal } = useAuthModal();
 
@@ -15,6 +15,16 @@ export function Header({ setIsAiModalOpen, onOpenAccountPage }) {
         }
         // Open AI Console for authenticated users
         setIsAiModalOpen(true);
+    };
+
+    const handleAccountClick = () => {
+        if (user) {
+            // User is logged in -> Open Account Drawer
+            onOpenAccount();
+        } else {
+            // Guest user -> Open Auth Modal
+            openAuthModal('login');
+        }
     };
 
     return (
@@ -43,7 +53,7 @@ export function Header({ setIsAiModalOpen, onOpenAccountPage }) {
                 {/* Dynamic Auth / Account Button */}
                 {user ? (
                     <button
-                        onClick={onOpenAccountPage}
+                        onClick={handleAccountClick}
                         className="flex items-center space-x-2 bg-cyan-950/60 hover:bg-cyan-900/50 text-cyan-300 hover:text-white text-xs font-semibold px-3.5 py-2 rounded-xl border border-cyan-800/80 transition-colors"
                     >
                         <UserCheck className="w-3.5 h-3.5 text-cyan-400" />

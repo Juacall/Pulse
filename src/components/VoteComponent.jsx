@@ -112,7 +112,7 @@ export function VoteComponent({
 
     return (
         <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5">
-            {!userProfile?.is_identity_verified ? (
+            {!user?.user_metadata.is_identity_verified ? (
                 <button
                     onClick={handleVerifyIdentity}
                     className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold px-3 py-2 rounded-lg"

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Lock, Mail, User, ShieldCheck, ChevronDown, ChevronUp, Info } from 'lucide-react';
-import {supabase} from "../lib/supabase.js";
+import { supabase } from "../lib/supabase.js";
 
 export function AuthModal({ isOpen, mode, setMode, onClose }) {
     const [email, setEmail] = useState('');
@@ -9,6 +9,21 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
     const [verifyIdentity, setVerifyIdentity] = useState(false);
     const [showIdentityExcerpt, setShowIdentityExcerpt] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [registeredEmail, setRegisteredEmail] = useState('');
+    const [isSubmitted, setIsSubmitted] = useState(false);
+
+    // Reset internal state when modal opens, closes, or switches modes
+    useEffect(() => {
+        if (!isOpen) {
+            setEmail('');
+            setPassword('');
+            setFullName('');
+            setErrorMessage('');
+            setIsSubmitted(false);
+            setLoading(false);
+        }
+    }, [isOpen, mode]);
 
     // Close modal on Escape key press
     useEffect(() => {
@@ -21,13 +36,13 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
-    // Guard: Prevent rendering when modal state is closed
     if (!isOpen) return null;
 
-    // Handle Form Submit for Email/Password
+    // Combined Auth Form Submission Handler
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setErrorMessage('');
 
         try {
             if (mode === 'login') {
@@ -39,12 +54,15 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                     email,
                     password,
                     options: {
-                        data: { full_name: fullName, verify_requested: verifyIdentity }
+                        data: {
+                            full_name: fullName,
+                            verify_requested: verifyIdentity
+                        }
                     }
                 });
                 if (error) throw error;
 
-                // If user checked identity verification during signup, initiate Stripe session
+                // Handle Optional Identity Verification Session
                 if (verifyIdentity && data?.session?.access_token) {
                     const res = await fetch('/api/identity/create-session', {
                         method: 'POST',
@@ -60,10 +78,16 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                     }
                 }
 
-                onClose();
+                // Check if email confirmation step is active in Supabase
+                if (data?.user && !data?.session) {
+                    setRegisteredEmail(email);
+                    setIsSubmitted(true);
+                } else {
+                    onClose();
+                }
             }
         } catch (err) {
-            console.error('Auth Error:', err.message);
+            setErrorMessage(err.message || 'Authentication failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -71,6 +95,7 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
 
     // Handle Google OAuth Login/Registration
     const handleGoogleLogin = async () => {
+        setErrorMessage('');
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
@@ -78,8 +103,37 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
             },
         });
 
-        if (error) console.error('Error logging in with Google:', error.message);
+        if (error) setErrorMessage(error.message);
     };
+
+    // Render "Check Your Email" Confirmation View
+    if (isSubmitted) {
+        return (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+                <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl text-center space-y-4">
+                    <div className="mx-auto w-12 h-12 rounded-2xl bg-cyan-950 border border-cyan-800 text-cyan-400 flex items-center justify-center">
+                        <Mail className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-100">Check Your Email</h3>
+                    <p className="text-sm text-slate-300">
+                        We sent a confirmation link to <span className="text-cyan-400 font-semibold">{registeredEmail}</span>.
+                    </p>
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                        Click the link in your email to activate your constituent account, then sign in.
+                    </p>
+                    <button
+                        onClick={() => {
+                            setIsSubmitted(false);
+                            onClose();
+                        }}
+                        className="w-full mt-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-semibold rounded-xl transition-colors"
+                    >
+                        Return to App
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -109,6 +163,13 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                         <X className="w-5 h-5" />
                     </button>
                 </div>
+
+                {/* Error Banner */}
+                {errorMessage && (
+                    <div className="mb-4 p-3 bg-red-950/50 border border-red-800/80 rounded-xl text-xs text-red-300">
+                        {errorMessage}
+                    </div>
+                )}
 
                 {/* Google Auth Button */}
                 <button
@@ -231,7 +292,10 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                             Don't have an account?{' '}
                             <button
                                 type="button"
-                                onClick={() => setMode('register')}
+                                onClick={() => {
+                                    setErrorMessage('');
+                                    setMode('register');
+                                }}
                                 className="text-cyan-400 hover:underline font-semibold"
                             >
                                 Sign up
@@ -242,7 +306,10 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                             Already have an account?{' '}
                             <button
                                 type="button"
-                                onClick={() => setMode('login')}
+                                onClick={() => {
+                                    setErrorMessage('');
+                                    setMode('login');
+                                }}
                                 className="text-cyan-400 hover:underline font-semibold"
                             >
                                 Sign in
