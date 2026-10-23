@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Lock, Mail, User, ShieldCheck, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { supabase } from "../lib/supabase.js";
+import { Turnstile } from 'react-turnstile';
 
 export function AuthModal({ isOpen, mode, setMode, onClose }) {
     const [email, setEmail] = useState('');
@@ -12,19 +13,19 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
     const [errorMessage, setErrorMessage] = useState('');
     const [registeredEmail, setRegisteredEmail] = useState('');
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [turnstileToken, setTurnstileToken] = useState(null);
+    const turnstileRef = useRef(null);
 
-    // Reset internal state when modal opens, closes, or switches modes
-    useEffect(() => {
-        if (!isOpen) {
-            setEmail('');
-            setPassword('');
-            setFullName('');
-            setErrorMessage('');
-            setIsSubmitted(false);
-            setLoading(false);
-        }
-    }, [isOpen, mode]);
-
+    // Reset internal state and Turnstile widget when modal opens, closes, or switches modes
+    const handleSwitchMode = (newMode) => {
+        setErrorMessage('');
+        setTurnstileToken(null);
+        turnstileRef.current?.reset();
+        setMode(newMode);
+        setEmail('')
+        setPassword('')
+        setFullName('')
+    };
     // Close modal on Escape key press
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -41,10 +42,32 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
     // Combined Auth Form Submission Handler
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // 1. Ensure Turnstile check is completed
+        if (!turnstileToken) {
+            setErrorMessage("Please complete the security check before proceeding.");
+            return;
+        }
+
         setLoading(true);
         setErrorMessage('');
+        const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
 
         try {
+            // 2. Validate Turnstile token with FastAPI backend
+            const verifyUrl = new URL("/api/auth/verify-turnstile", baseUrl);
+            const verifyRes = await fetch(verifyUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ turnstile_token: turnstileToken })
+            });
+
+            if (!verifyRes.ok) {
+                const errData = await verifyRes.json();
+                throw new Error(errData.detail || "Bot protection check failed");
+            }
+
+            // 3. Proceed with Supabase Auth after backend clearance
             if (mode === 'login') {
                 const { error } = await supabase.auth.signInWithPassword({ email, password });
                 if (error) throw error;
@@ -64,7 +87,8 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
 
                 // Handle Optional Identity Verification Session
                 if (verifyIdentity && data?.session?.access_token) {
-                    const res = await fetch('/api/identity/create-session', {
+                    const sessionUrl = new URL('/api/identity/create-session', baseUrl);
+                    const res = await fetch(sessionUrl, {
                         method: 'POST',
                         headers: {
                             'Authorization': `Bearer ${data.session.access_token}`,
@@ -90,6 +114,12 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
             setErrorMessage(err.message || 'Authentication failed. Please try again.');
         } finally {
             setLoading(false);
+
+            // Reset single-use Turnstile token
+            setTurnstileToken(null);
+            if (turnstileRef.current) {
+                turnstileRef.current.reset();
+            }
         }
     };
 
@@ -193,6 +223,7 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                 </div>
 
                 {/* Identity Verification Toggle Option */}
+                {mode === 'register' && (
                 <div className="mb-4 bg-slate-950/60 border border-slate-800/80 rounded-2xl p-3.5">
                     <div className="flex items-start justify-between gap-2">
                         <label className="flex items-center space-x-2 cursor-pointer select-none">
@@ -226,6 +257,7 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                         </div>
                     )}
                 </div>
+                )}
 
                 {/* Auth Form */}
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -276,9 +308,21 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                         </div>
                     </div>
 
+                    {/* Turnstile Security Widget */}
+                    <div className="flex justify-center py-1">
+                        <Turnstile
+                            ref={turnstileRef}
+                            sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || "1x00000000000000000000AA"}
+                            onSuccess={(token) => setTurnstileToken(token)}
+                            onExpire={() => setTurnstileToken(null)}
+                            onError={() => setTurnstileToken(null)}
+                            options={{ theme: 'dark' }}
+                        />
+                    </div>
+
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={loading || !turnstileToken}
                         className="w-full py-2.5 mt-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition-colors shadow-lg disabled:bg-slate-800 disabled:text-slate-500"
                     >
                         {loading ? 'Processing...' : (mode === 'login' ? 'Sign In' : 'Register Account')}
@@ -292,10 +336,7 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                             Don't have an account?{' '}
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setErrorMessage('');
-                                    setMode('register');
-                                }}
+                                onClick={() => handleSwitchMode('register')}
                                 className="text-cyan-400 hover:underline font-semibold"
                             >
                                 Sign up
@@ -306,10 +347,7 @@ export function AuthModal({ isOpen, mode, setMode, onClose }) {
                             Already have an account?{' '}
                             <button
                                 type="button"
-                                onClick={() => {
-                                    setErrorMessage('');
-                                    setMode('login');
-                                }}
+                                onClick={() => handleSwitchMode('login')}
                                 className="text-cyan-400 hover:underline font-semibold"
                             >
                                 Sign in
