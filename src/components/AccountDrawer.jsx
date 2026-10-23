@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import { X, User, Mail, ShieldCheck, ShieldAlert, LogOut, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export function AccountDrawer({ isOpen, onClose }) {
     const { user, supabase, simulateVerifyIdentity } = useAuth();
     const [verifying, setVerifying] = useState(false);
+
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('verification') === 'success') {
+            // Clear URL parameter so it doesn't trigger continuously
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Refresh Supabase auth session to pull updated user_metadata / profiles table
+            supabase.auth.refreshSession();
+        }
+    }, []);
+
 
     if (!isOpen || !user) return null;
 
@@ -17,11 +29,12 @@ export function AccountDrawer({ isOpen, onClose }) {
         setVerifying(true);
         try {
             // Check if we are in dev/simulation mode
-            if (import.meta.env.DEV && simulateVerifyIdentity) {
+            if (import.meta.env.VITE_APP_ENV == "mock" && simulateVerifyIdentity) {
                 simulateVerifyIdentity();
                 setVerifying(false);
                 return;
             }
+
 
             // Production Stripe Identity Session flow
             const session = (await supabase.auth.getSession())?.data?.session;
@@ -48,6 +61,7 @@ export function AccountDrawer({ isOpen, onClose }) {
         await supabase.auth.signOut();
         onClose();
     };
+
 
     return (
         <div className="fixed inset-0 z-50 overflow-hidden bg-slate-950/60 backdrop-blur-sm flex justify-end">
